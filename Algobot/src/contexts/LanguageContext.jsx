@@ -103,6 +103,21 @@ const translations = {
         links: 'Ссылки',
         categories: 'Категории',
         aggregators: 'Агрегаторы',
+        name: 'Название',
+        color: 'Цвет',
+        ourCompany: 'Наша компания',
+        yes: 'Да',
+        no: 'Нет',
+        icon: 'Иконка',
+        category: 'Категория',
+        position: 'Позиция',
+        action: 'Действие',
+        status: 'Статус',
+        priority: 'Приоритет',
+        schema: 'Схема',
+        tables: 'Таблиц',
+        totalRecords: 'Всего записей',
+        records: 'записей',
 
         // Common
         selectAll: 'Выбрать все',
@@ -219,6 +234,21 @@ const translations = {
         links: 'Links',
         categories: 'Categories',
         aggregators: 'Aggregators',
+        name: 'Name',
+        color: 'Color',
+        ourCompany: 'Our Company',
+        yes: 'Yes',
+        no: 'No',
+        icon: 'Icon',
+        category: 'Category',
+        position: 'Position',
+        action: 'Action',
+        status: 'Status',
+        priority: 'Priority',
+        schema: 'Schema',
+        tables: 'Tables',
+        totalRecords: 'Total Records',
+        records: 'records',
 
         // Common
         selectAll: 'Select all',
@@ -335,6 +365,21 @@ const translations = {
         links: 'Сілтемелер',
         categories: 'Санаттар',
         aggregators: 'Агрегаторлар',
+        name: 'Атауы',
+        color: 'Түсі',
+        ourCompany: 'Біздің компания',
+        yes: 'Иә',
+        no: 'Жоқ',
+        icon: 'Белгіше',
+        category: 'Санат',
+        position: 'Позиция',
+        action: 'Әрекет',
+        status: 'Мәртебе',
+        priority: 'Басымдық',
+        schema: 'Схема',
+        tables: 'Кестелер',
+        totalRecords: 'Барлық жазбалар',
+        records: 'жазба',
 
         // Common
         selectAll: 'Барлығын таңдау',
@@ -370,9 +415,9 @@ export function LanguageProvider({ children }) {
     };
 
     const languages = [
-        { code: 'ru', name: 'Русский', flag: '🇷🇺' },
-        { code: 'en', name: 'English', flag: '🇬🇧' },
-        { code: 'kz', name: 'Қазақша', flag: '🇰🇿' },
+        { code: 'ru', name: 'Русский', flag: '' },
+        { code: 'en', name: 'English', flag: '' },
+        { code: 'kz', name: 'Қазақша', flag: '' },
     ];
 
     return (
