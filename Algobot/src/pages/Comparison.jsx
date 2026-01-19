@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { Search, Filter, RefreshCw, Download, ChevronDown, X } from 'lucide-react';
 import ComparisonTable from '../components/ComparisonTable';
 import CategoryTree from '../components/CategoryTree';
@@ -21,7 +21,6 @@ export default function Comparison() {
     fetchData();
   }, []);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -45,7 +44,6 @@ export default function Comparison() {
       setCategoryTree(treeRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
-      // Fallback: if tree endpoint doesn't exist, use flat categories
       try {
         const [productsRes, categoriesRes] = await Promise.all([
           productsAPI.getComparison(),
@@ -53,7 +51,6 @@ export default function Comparison() {
         ]);
         setProducts(productsRes.data);
         setCategories(categoriesRes.data);
-        // Convert flat to tree format
         setCategoryTree(categoriesRes.data.map(c => ({ ...c, children: [] })));
       } catch (e) {
         console.error('Fallback also failed:', e);
@@ -63,7 +60,6 @@ export default function Comparison() {
     }
   };
 
-  // Get all category IDs including children
   const getAllCategoryIds = (cats) => {
     const ids = [];
     const collect = (categories) => {
@@ -84,7 +80,6 @@ export default function Comparison() {
       (filterPosition === 'top' && product.our_position === 1) ||
       (filterPosition === 'need_action' && product.our_position !== null && product.our_position > 1) ||
       (filterPosition === 'missing' && product.our_position === null);
-
     return matchesSearch && matchesCategory && matchesPosition;
   });
 
@@ -95,15 +90,10 @@ export default function Comparison() {
     missing: filteredProducts.filter((p) => p.our_position === null).length,
   };
 
-  // Get selected category names for display
   const getSelectedCategoryNames = () => {
     if (selectedCategories.length === 0) return 'Все категории';
     if (selectedCategories.length === getAllCategoryIds(categoryTree).length) return 'Все категории';
-
-    const names = categories
-      .filter(c => selectedCategories.includes(c.id))
-      .map(c => c.name);
-
+    const names = categories.filter(c => selectedCategories.includes(c.id)).map(c => c.name);
     if (names.length <= 2) return names.join(', ');
     return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
   };
@@ -113,11 +103,11 @@ export default function Comparison() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Сравнение цен</h1>
-          <p className="text-gray-500 mt-1">Сравните цены на всех агрегаторах</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Сравнение цен</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Сравните цены на всех агрегаторах</p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl font-medium transition-colors">
+          <button className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-xl font-medium transition-colors">
             <Download className="w-4 h-4" />
             Экспорт
           </button>
@@ -132,7 +122,7 @@ export default function Comparison() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-slate-700 mb-6">
         <div className="flex flex-wrap items-center gap-4">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
@@ -142,24 +132,23 @@ export default function Comparison() {
               placeholder="Поиск товаров..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400"
             />
           </div>
 
-          {/* Category Filter - Tree Dropdown */}
+          {/* Category Filter */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors min-w-[200px]"
+              className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors min-w-[200px]"
             >
               <Filter className="w-5 h-5 text-gray-400" />
-              <span className="text-gray-700 flex-1 text-left truncate">
+              <span className="text-gray-700 dark:text-gray-200 flex-1 text-left truncate">
                 {getSelectedCategoryNames()}
               </span>
               <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* Selected categories badges */}
             {selectedCategories.length > 0 && selectedCategories.length < getAllCategoryIds(categoryTree).length && (
               <button
                 onClick={() => setSelectedCategories([])}
@@ -171,18 +160,13 @@ export default function Comparison() {
 
             <AnimatePresence>
               {showCategoryDropdown && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute top-full left-0 mt-2 z-50 min-w-[280px]"
-                >
+                <div className="absolute top-full left-0 mt-2 z-50 min-w-[280px]">
                   <CategoryTree
                     categories={categoryTree}
                     selectedCategories={selectedCategories}
                     onChange={setSelectedCategories}
                   />
-                </motion.div>
+                </div>
               )}
             </AnimatePresence>
           </div>
@@ -191,26 +175,21 @@ export default function Comparison() {
           <div className="flex gap-2">
             {[
               { value: 'all', label: 'Все', count: stats.total },
-              { value: 'top', label: 'ТОП 1', count: stats.top1, color: 'emerald' },
-              { value: 'need_action', label: 'Требуют действий', count: stats.needAction, color: 'amber' },
-              { value: 'missing', label: 'Отсутствуют', count: stats.missing, color: 'rose' },
-            ].map((filter) => (
+              { value: 'top', label: 'ТОП 1', count: stats.top1 },
+              { value: 'need_action', label: 'Требуют действий', count: stats.needAction },
+              { value: 'missing', label: 'Отсутствуют', count: stats.missing },
+            ].map((f) => (
               <button
-                key={filter.value}
-                onClick={() => setFilterPosition(filter.value)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                  filterPosition === filter.value
-                    ? filter.color
-                      ? `bg-${filter.color}-100 text-${filter.color}-700 border border-${filter.color}-200`
-                      : 'bg-gray-900 text-white'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
+                key={f.value}
+                onClick={() => setFilterPosition(f.value)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filterPosition === f.value
+                    ? 'bg-gray-900 dark:bg-emerald-600 text-white'
+                    : 'bg-gray-50 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600 border border-gray-200 dark:border-slate-600'
+                  }`}
               >
-                {filter.label}
-                <span className={`ml-2 ${
-                  filterPosition === filter.value ? 'opacity-80' : 'text-gray-400'
-                }`}>
-                  ({filter.count})
+                {f.label}
+                <span className={`ml-2 ${filterPosition === f.value ? 'opacity-80' : 'text-gray-400'}`}>
+                  ({f.count})
                 </span>
               </button>
             ))}
@@ -220,52 +199,28 @@ export default function Comparison() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center"
-        >
-          <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-          <p className="text-sm text-gray-500">Всего товаров</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 text-center"
-        >
-          <p className="text-2xl font-bold text-emerald-600">{stats.top1}</p>
-          <p className="text-sm text-emerald-600">ТОП 1</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-amber-50 rounded-xl p-4 border border-amber-100 text-center"
-        >
-          <p className="text-2xl font-bold text-amber-600">{stats.needAction}</p>
-          <p className="text-sm text-amber-600">Требуют действий</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="bg-rose-50 rounded-xl p-4 border border-rose-100 text-center"
-        >
-          <p className="text-2xl font-bold text-rose-600">{stats.missing}</p>
-          <p className="text-sm text-rose-600">Отсутствуют</p>
-        </motion.div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-slate-700 text-center">
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Всего товаров</p>
+        </div>
+        <div className="bg-emerald-50 dark:bg-emerald-900/30 rounded-xl p-4 border border-emerald-100 dark:border-emerald-800 text-center">
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.top1}</p>
+          <p className="text-sm text-emerald-600 dark:text-emerald-400">ТОП 1</p>
+        </div>
+        <div className="bg-amber-50 dark:bg-amber-900/30 rounded-xl p-4 border border-amber-100 dark:border-amber-800 text-center">
+          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.needAction}</p>
+          <p className="text-sm text-amber-600 dark:text-amber-400">Требуют действий</p>
+        </div>
+        <div className="bg-rose-50 dark:bg-rose-900/30 rounded-xl p-4 border border-rose-100 dark:border-rose-800 text-center">
+          <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{stats.missing}</p>
+          <p className="text-sm text-rose-600 dark:text-rose-400">Отсутствуют</p>
+        </div>
       </div>
 
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-          >
-            <RefreshCw className="w-8 h-8 text-emerald-500" />
-          </motion.div>
+          <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin" />
         </div>
       ) : (
         <ComparisonTable

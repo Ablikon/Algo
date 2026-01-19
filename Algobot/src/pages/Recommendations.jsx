@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { RefreshCw, Play, Filter, CheckCircle, XCircle, Clock } from 'lucide-react';
 import RecommendationCard from '../components/RecommendationCard';
 import AlgorithmVisualizer from '../components/AlgorithmVisualizer';
+import { NoRecommendations } from '../components/EmptyState';
 import { recommendationsAPI, algorithmAPI } from '../services/api';
 
 export default function Recommendations() {
@@ -94,13 +95,13 @@ export default function Recommendations() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Рекомендации</h1>
-          <p className="text-gray-500 mt-1">AI-рекомендации по ценообразованию для достижения ТОП-1</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Рекомендации</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">AI-рекомендации по ценообразованию для достижения ТОП-1</p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={() => setShowVisualizer(!showVisualizer)}
-            className="flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl font-medium transition-colors"
+            className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-xl font-medium transition-colors"
           >
             <Play className="w-4 h-4" />
             {showVisualizer ? 'Скрыть визуализацию' : 'Показать визуализацию'}
@@ -130,30 +131,30 @@ export default function Recommendations() {
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
-          <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-          <p className="text-sm text-gray-500">Всего</p>
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-slate-700 text-center">
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Всего</p>
         </div>
-        <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 text-center">
+        <div className="bg-amber-50 dark:bg-amber-900/30 rounded-xl p-4 border border-amber-100 dark:border-amber-800 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
-            <Clock className="w-5 h-5 text-amber-500" />
-            <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
+            <Clock className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.pending}</p>
           </div>
-          <p className="text-sm text-amber-600">В ожидании</p>
+          <p className="text-sm text-amber-600 dark:text-amber-400">В ожидании</p>
         </div>
-        <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 text-center">
+        <div className="bg-emerald-50 dark:bg-emerald-900/30 rounded-xl p-4 border border-emerald-100 dark:border-emerald-800 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
-            <CheckCircle className="w-5 h-5 text-emerald-500" />
-            <p className="text-2xl font-bold text-emerald-600">{stats.applied}</p>
+            <CheckCircle className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.applied}</p>
           </div>
-          <p className="text-sm text-emerald-600">Применено</p>
+          <p className="text-sm text-emerald-600 dark:text-emerald-400">Применено</p>
         </div>
-        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 text-center">
+        <div className="bg-gray-50 dark:bg-slate-700 rounded-xl p-4 border border-gray-200 dark:border-slate-600 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
-            <XCircle className="w-5 h-5 text-gray-500" />
-            <p className="text-2xl font-bold text-gray-600">{stats.rejected}</p>
+            <XCircle className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            <p className="text-2xl font-bold text-gray-600 dark:text-gray-300">{stats.rejected}</p>
           </div>
-          <p className="text-sm text-gray-500">Отклонено</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Отклонено</p>
         </div>
       </div>
 
@@ -171,11 +172,10 @@ export default function Recommendations() {
           <button
             key={f.value}
             onClick={() => setFilter(f.value)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-              filter === f.value
-                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filter === f.value
+                ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                : 'bg-white dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-600 border border-gray-200 dark:border-slate-600'
+              }`}
           >
             {f.label}
           </button>
@@ -184,17 +184,30 @@ export default function Recommendations() {
 
       {/* Recommendations Grid */}
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-          >
-            <RefreshCw className="w-8 h-8 text-emerald-500" />
-          </motion.div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-slate-700">
+              <div className="flex items-center justify-between mb-4">
+                <div className="skeleton h-5 w-32" />
+                <div className="skeleton h-6 w-16 rounded-full" />
+              </div>
+              <div className="skeleton h-4 w-24 mb-2" />
+              <div className="flex justify-between items-center mb-4">
+                <div className="skeleton h-8 w-20" />
+                <div className="skeleton h-4 w-8" />
+                <div className="skeleton h-8 w-20" />
+              </div>
+              <div className="skeleton h-3 w-full mb-4" />
+              <div className="flex gap-2">
+                <div className="skeleton h-10 flex-1 rounded-xl" />
+                <div className="skeleton h-10 flex-1 rounded-xl" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : filteredRecommendations.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
-          <p className="text-gray-500">Рекомендации не найдены</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700">
+          <NoRecommendations />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
