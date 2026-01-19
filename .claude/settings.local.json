@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(psql:*)",
+      "Bash(python3 -m venv:*)",
+      "Bash(/Users/abylajhanbegimkulov/Desktop/ScoutAlgo/backend/venv/bin/pip install:*)",
+      "Bash(/Users/abylajhanbegimkulov/Desktop/ScoutAlgo/backend/venv/bin/django-admin startproject:*)",
+      "Bash(/Users/abylajhanbegimkulov/Desktop/ScoutAlgo/backend/venv/bin/python:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)"
+    ]
+  }
+}
