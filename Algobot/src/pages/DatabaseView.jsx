@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Database, Table2, RefreshCw, ChevronRight, Circle } from 'lucide-react';
+import { Database, Table2, RefreshCw, ChevronRight, Circle, Upload } from 'lucide-react';
 import { aggregatorsAPI, categoriesAPI, productsAPI, recommendationsAPI } from '../services/api';
+import BulkImport from '../components/BulkImport';
 
 export default function DatabaseView() {
   const [activeTable, setActiveTable] = useState('aggregators');
+  const [showImport, setShowImport] = useState(false);
   const [data, setData] = useState({
     aggregators: [],
     categories: [],
@@ -275,14 +277,39 @@ export default function DatabaseView() {
           <h1 className="text-2xl font-bold text-gray-900">База данных</h1>
           <p className="text-gray-500 mt-1">Изучите структуру и данные</p>
         </div>
-        <button
-          onClick={fetchAllData}
-          className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Обновить
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowImport(!showImport)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-colors ${
+              showImport
+                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Upload className="w-4 h-4" />
+            Импорт
+          </button>
+          <button
+            onClick={fetchAllData}
+            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Обновить
+          </button>
+        </div>
       </div>
+
+      {/* Import Panel */}
+      {showImport && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          className="mb-6"
+        >
+          <BulkImport onImportComplete={fetchAllData} />
+        </motion.div>
+      )}
 
       <div className="flex gap-6">
         {/* Sidebar - Tables List */}

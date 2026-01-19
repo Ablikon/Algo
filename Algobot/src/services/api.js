@@ -15,6 +15,10 @@ export const aggregatorsAPI = {
 
 export const categoriesAPI = {
   getAll: () => api.get('/categories/'),
+  getTree: () => api.get('/categories/tree/'),
+  create: (data) => api.post('/categories/', data),
+  update: (id, data) => api.patch(`/categories/${id}/`, data),
+  delete: (id) => api.delete(`/categories/${id}/`),
 };
 
 export const productsAPI = {
@@ -36,6 +40,31 @@ export const analyticsAPI = {
 
 export const algorithmAPI = {
   run: () => api.post('/algorithm/run/'),
+};
+
+export const productLinksAPI = {
+  getAll: (productId) => api.get('/product-links/', { params: { product_id: productId } }),
+  create: (data) => api.post('/product-links/', data),
+  update: (id, data) => api.patch(`/product-links/${id}/`, data),
+  delete: (id) => api.delete(`/product-links/${id}/`),
+};
+
+export const importAPI = {
+  uploadProducts: (formData) => api.post('/import/products/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  uploadPrices: (formData) => api.post('/import/prices/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  uploadLinks: (formData) => api.post('/import/links/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  uploadCategories: (formData) => api.post('/import/categories/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  getJobs: () => api.get('/import-jobs/'),
+  getJobStatus: (id) => api.get(`/import-jobs/${id}/`),
+  downloadTemplate: (type) => `${API_BASE_URL}/import/template/${type}/`,
 };
 
 export default api;

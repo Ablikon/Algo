@@ -7,7 +7,10 @@
       "Bash(/Users/abylajhanbegimkulov/Desktop/ScoutAlgo/backend/venv/bin/django-admin startproject:*)",
       "Bash(/Users/abylajhanbegimkulov/Desktop/ScoutAlgo/backend/venv/bin/python:*)",
       "Bash(npm install:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(pg_isready:*)",
+      "Bash(lsof:*)",
+      "Bash(python manage.py runserver:*)"
     ]
   }
 }

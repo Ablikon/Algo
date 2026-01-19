@@ -1,40 +1,84 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Search, Filter, RefreshCw, Download } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Filter, RefreshCw, Download, ChevronDown, X } from 'lucide-react';
 import ComparisonTable from '../components/ComparisonTable';
+import CategoryTree from '../components/CategoryTree';
 import { productsAPI, categoriesAPI } from '../services/api';
 
 export default function Comparison() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [categoryTree, setCategoryTree] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [filterPosition, setFilterPosition] = useState('all');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showNormalized, setShowNormalized] = useState(false);
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
     fetchData();
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowCategoryDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [productsRes, categoriesRes] = await Promise.all([
+      const [productsRes, categoriesRes, treeRes] = await Promise.all([
         productsAPI.getComparison(),
         categoriesAPI.getAll(),
+        categoriesAPI.getTree(),
       ]);
       setProducts(productsRes.data);
       setCategories(categoriesRes.data);
+      setCategoryTree(treeRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
+      // Fallback: if tree endpoint doesn't exist, use flat categories
+      try {
+        const [productsRes, categoriesRes] = await Promise.all([
+          productsAPI.getComparison(),
+          categoriesAPI.getAll(),
+        ]);
+        setProducts(productsRes.data);
+        setCategories(categoriesRes.data);
+        // Convert flat to tree format
+        setCategoryTree(categoriesRes.data.map(c => ({ ...c, children: [] })));
+      } catch (e) {
+        console.error('Fallback also failed:', e);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // Get all category IDs including children
+  const getAllCategoryIds = (cats) => {
+    const ids = [];
+    const collect = (categories) => {
+      categories.forEach(cat => {
+        ids.push(cat.id);
+        if (cat.children) collect(cat.children);
+      });
+    };
+    collect(cats);
+    return ids;
+  };
+
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || product.category_name === selectedCategory;
+    const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(product.category_id);
     const matchesPosition =
       filterPosition === 'all' ||
       (filterPosition === 'top' && product.our_position === 1) ||
@@ -49,6 +93,19 @@ export default function Comparison() {
     top1: filteredProducts.filter((p) => p.our_position === 1).length,
     needAction: filteredProducts.filter((p) => p.our_position !== null && p.our_position > 1).length,
     missing: filteredProducts.filter((p) => p.our_position === null).length,
+  };
+
+  // Get selected category names for display
+  const getSelectedCategoryNames = () => {
+    if (selectedCategories.length === 0) return 'Все категории';
+    if (selectedCategories.length === getAllCategoryIds(categoryTree).length) return 'Все категории';
+
+    const names = categories
+      .filter(c => selectedCategories.includes(c.id))
+      .map(c => c.name);
+
+    if (names.length <= 2) return names.join(', ');
+    return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
   };
 
   return (
@@ -89,21 +146,45 @@ export default function Comparison() {
             />
           </div>
 
-          {/* Category Filter */}
-          <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-gray-400" />
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          {/* Category Filter - Tree Dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors min-w-[200px]"
             >
-              <option value="all">Все категории</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.name}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+              <Filter className="w-5 h-5 text-gray-400" />
+              <span className="text-gray-700 flex-1 text-left truncate">
+                {getSelectedCategoryNames()}
+              </span>
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Selected categories badges */}
+            {selectedCategories.length > 0 && selectedCategories.length < getAllCategoryIds(categoryTree).length && (
+              <button
+                onClick={() => setSelectedCategories([])}
+                className="absolute -top-2 -right-2 w-5 h-5 bg-gray-500 text-white rounded-full flex items-center justify-center hover:bg-gray-600"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+
+            <AnimatePresence>
+              {showCategoryDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute top-full left-0 mt-2 z-50 min-w-[280px]"
+                >
+                  <CategoryTree
+                    categories={categoryTree}
+                    selectedCategories={selectedCategories}
+                    onChange={setSelectedCategories}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Position Filter */}
@@ -187,7 +268,11 @@ export default function Comparison() {
           </motion.div>
         </div>
       ) : (
-        <ComparisonTable products={filteredProducts} />
+        <ComparisonTable
+          products={filteredProducts}
+          showNormalized={showNormalized}
+          onToggleNormalized={() => setShowNormalized(!showNormalized)}
+        />
       )}
     </div>
   );

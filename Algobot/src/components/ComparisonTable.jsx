@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, AlertTriangle, Minus } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Minus, ExternalLink, Scale } from 'lucide-react';
 
 const aggregatorColors = {
   glovo: '#00A082',
@@ -7,7 +7,7 @@ const aggregatorColors = {
   wolt: '#00C2E8',
 };
 
-export default function ComparisonTable({ products, compact = false }) {
+export default function ComparisonTable({ products, compact = false, showNormalized = false, onToggleNormalized }) {
   const getPositionBadge = (position) => {
     if (position === null) {
       return (
@@ -38,23 +38,53 @@ export default function ComparisonTable({ products, compact = false }) {
     return `${price.toLocaleString()}₸`;
   };
 
-  const getPriceCell = (price, isAvailable, aggregator, minPrice) => {
-    if (!isAvailable || price === null) {
+  const getPriceCell = (priceData, aggregator, minPrice, normalizedData, showNormalized) => {
+    if (!priceData || !priceData.is_available || priceData.price === null) {
       return (
-        <div className="flex items-center gap-2 text-gray-400">
+        <div className="flex items-center justify-center gap-2 text-gray-400">
           <XCircle className="w-4 h-4" />
-          <span>Нет в наличии</span>
+          <span className="text-sm">Нет в наличии</span>
         </div>
       );
     }
 
+    const price = priceData.price;
     const isMin = price === minPrice;
     const isGlovo = aggregator === 'glovo';
+    const hasUrl = priceData.url;
+
+    // Normalized price
+    const normalizedPrice = normalizedData?.[aggregator]?.price_per_unit;
+    const normalizedUnit = normalizedData?.[aggregator]?.unit;
 
     return (
-      <div className={`font-semibold ${isMin ? 'text-emerald-600' : isGlovo ? 'text-gray-900' : 'text-gray-600'}`}>
-        {formatPrice(price)}
-        {isMin && <span className="ml-2 text-xs text-emerald-500">МИН</span>}
+      <div className="flex flex-col items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          <span className={`font-semibold ${isMin ? 'text-emerald-600' : isGlovo ? 'text-gray-900' : 'text-gray-600'}`}>
+            {formatPrice(price)}
+          </span>
+          {isMin && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase">МИН</span>}
+        </div>
+
+        {hasUrl && (
+          <a
+            href={priceData.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors"
+            title={priceData.external_name || 'Открыть товар на сайте'}
+          >
+            <ExternalLink className="w-3 h-3" />
+            Ссылка
+          </a>
+        )}
+
+        {showNormalized && normalizedPrice && (
+          <span className="text-xs text-gray-400 mt-1">
+            {formatPrice(normalizedPrice)}/{normalizedUnit}
+          </span>
+        )}
       </div>
     );
   };
@@ -67,6 +97,22 @@ export default function ComparisonTable({ products, compact = false }) {
       animate={{ opacity: 1 }}
       className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
     >
+      {/* Normalization Toggle */}
+      {!compact && onToggleNormalized && (
+        <div className="px-6 py-3 border-b border-gray-100 flex items-center justify-end">
+          <button
+            onClick={onToggleNormalized}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${showNormalized
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+          >
+            <Scale className="w-4 h-4" />
+            {showNormalized ? 'Цена за единицу' : 'Показать за кг/л'}
+          </button>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -114,17 +160,34 @@ export default function ComparisonTable({ products, compact = false }) {
                   <td className="py-4 px-6">
                     <div>
                       <p className="font-medium text-gray-900">{product.name}</p>
-                      <p className="text-sm text-gray-500">{product.category_name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-sm text-gray-500">{product.category_name}</span>
+                        {product.brand && (
+                          <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">
+                            {product.brand}
+                          </span>
+                        )}
+                        {product.country_of_origin && (
+                          <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                            {product.country_of_origin}
+                          </span>
+                        )}
+                      </div>
+                      {product.weight_info && (
+                        <span className="text-xs text-gray-400 mt-0.5 block">
+                          {product.weight_info.display}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="py-4 px-4 text-center">
-                    {getPriceCell(glovoPrice, prices.glovo?.is_available, 'glovo', minPrice)}
+                    {getPriceCell(prices.glovo, 'glovo', minPrice, product.normalized_prices, showNormalized)}
                   </td>
                   <td className="py-4 px-4 text-center">
-                    {getPriceCell(yandexPrice, prices.yandex?.is_available, 'yandex', minPrice)}
+                    {getPriceCell(prices.yandex, 'yandex', minPrice, product.normalized_prices, showNormalized)}
                   </td>
                   <td className="py-4 px-4 text-center">
-                    {getPriceCell(woltPrice, prices.wolt?.is_available, 'wolt', minPrice)}
+                    {getPriceCell(prices.wolt, 'wolt', minPrice, product.normalized_prices, showNormalized)}
                   </td>
                   <td className="py-4 px-6 text-center">
                     {getPositionBadge(product.our_position)}
@@ -135,6 +198,12 @@ export default function ComparisonTable({ products, compact = false }) {
           </tbody>
         </table>
       </div>
+
+      {displayProducts.length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          Нет товаров для отображения
+        </div>
+      )}
     </motion.div>
   );
 }
