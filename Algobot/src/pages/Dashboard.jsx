@@ -10,7 +10,8 @@ import {
   Target,
   TrendingUp,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  Award
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 import StatsCard from '../components/StatsCard';
@@ -153,7 +154,7 @@ export default function Dashboard() {
           title="Потенциальная экономия"
           value={`${stats?.potential_savings?.toLocaleString() || 0}₸`}
           subtitle="Если применить все"
-          icon={HorseIcon}
+          icon={Award}
           color="emerald"
         />
         <StatsCard

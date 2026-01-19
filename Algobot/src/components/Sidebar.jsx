@@ -27,8 +27,8 @@ export default function Sidebar() {
             <TrendingUp className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">ScoutAlgo</h1>
-            <p className="text-xs text-gray-500">Price Intelligence</p>
+            <h1 className="text-xl font-bold text-gray-900">PriceAlgo</h1>
+            <p className="text-xs text-gray-500">Ценовой аналитик</p>
           </div>
         </div>
       </div>

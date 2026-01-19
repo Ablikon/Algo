@@ -101,7 +101,7 @@ export default function AlgorithmVisualizer() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">Визуализация алгоритма</h3>
-          <p className="text-sm text-gray-500">Посмотрите, как ScoutAlgo анализирует цены в реальном времени</p>
+          <p className="text-sm text-gray-500">Посмотрите, как PriceAlgo анализирует цены в реальном времени</p>
         </div>
         <div className="flex gap-2">
           {!isRunning && currentStep === 0 && (
