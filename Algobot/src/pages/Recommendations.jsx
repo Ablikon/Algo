@@ -94,8 +94,8 @@ export default function Recommendations() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Recommendations</h1>
-          <p className="text-gray-500 mt-1">AI-powered pricing recommendations to achieve TOP-1 position</p>
+          <h1 className="text-2xl font-bold text-gray-900">Рекомендации</h1>
+          <p className="text-gray-500 mt-1">AI-рекомендации по ценообразованию для достижения ТОП-1</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -103,7 +103,7 @@ export default function Recommendations() {
             className="flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl font-medium transition-colors"
           >
             <Play className="w-4 h-4" />
-            {showVisualizer ? 'Hide Visualizer' : 'Show Visualizer'}
+            {showVisualizer ? 'Скрыть визуализацию' : 'Показать визуализацию'}
           </button>
           <button
             onClick={handleRunAlgorithm}
@@ -111,7 +111,7 @@ export default function Recommendations() {
             className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${runningAlgorithm ? 'animate-spin' : ''}`} />
-            {runningAlgorithm ? 'Running...' : 'Run Algorithm'}
+            {runningAlgorithm ? 'Выполняется...' : 'Запустить алгоритм'}
           </button>
         </div>
       </div>
@@ -132,28 +132,28 @@ export default function Recommendations() {
       <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-          <p className="text-sm text-gray-500">Total</p>
+          <p className="text-sm text-gray-500">Всего</p>
         </div>
         <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
             <Clock className="w-5 h-5 text-amber-500" />
             <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
           </div>
-          <p className="text-sm text-amber-600">Pending</p>
+          <p className="text-sm text-amber-600">В ожидании</p>
         </div>
         <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
             <CheckCircle className="w-5 h-5 text-emerald-500" />
             <p className="text-2xl font-bold text-emerald-600">{stats.applied}</p>
           </div>
-          <p className="text-sm text-emerald-600">Applied</p>
+          <p className="text-sm text-emerald-600">Применено</p>
         </div>
         <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
             <XCircle className="w-5 h-5 text-gray-500" />
             <p className="text-2xl font-bold text-gray-600">{stats.rejected}</p>
           </div>
-          <p className="text-sm text-gray-500">Rejected</p>
+          <p className="text-sm text-gray-500">Отклонено</p>
         </div>
       </div>
 
@@ -161,12 +161,12 @@ export default function Recommendations() {
       <div className="flex items-center gap-2 mb-6">
         <Filter className="w-5 h-5 text-gray-400" />
         {[
-          { value: 'all', label: 'All' },
-          { value: 'pending', label: 'Pending' },
-          { value: 'applied', label: 'Applied' },
-          { value: 'rejected', label: 'Rejected' },
-          { value: 'lower', label: 'Lower Price' },
-          { value: 'add', label: 'Add Product' },
+          { value: 'all', label: 'Все' },
+          { value: 'pending', label: 'В ожидании' },
+          { value: 'applied', label: 'Применено' },
+          { value: 'rejected', label: 'Отклонено' },
+          { value: 'lower', label: 'Сниженная цена' },
+          { value: 'add', label: 'Добавить продукт' },
         ].map((f) => (
           <button
             key={f.value}
@@ -194,7 +194,7 @@ export default function Recommendations() {
         </div>
       ) : filteredRecommendations.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
-          <p className="text-gray-500">No recommendations found</p>
+          <p className="text-gray-500">Рекомендации не найдены</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

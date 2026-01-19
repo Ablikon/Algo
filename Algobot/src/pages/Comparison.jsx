@@ -56,20 +56,20 @@ export default function Comparison() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Price Comparison</h1>
-          <p className="text-gray-500 mt-1">Compare prices across all aggregators</p>
+          <h1 className="text-2xl font-bold text-gray-900">Сравнение цен</h1>
+          <p className="text-gray-500 mt-1">Сравните цены на всех агрегаторах</p>
         </div>
         <div className="flex gap-3">
           <button className="flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl font-medium transition-colors">
             <Download className="w-4 h-4" />
-            Export
+            Экспорт
           </button>
           <button
             onClick={fetchData}
             className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            Обновить
           </button>
         </div>
       </div>
@@ -82,7 +82,7 @@ export default function Comparison() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search products..."
+              placeholder="Поиск товаров..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
@@ -97,7 +97,7 @@ export default function Comparison() {
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="all">All Categories</option>
+              <option value="all">Все категории</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.name}>
                   {cat.name}
@@ -109,10 +109,10 @@ export default function Comparison() {
           {/* Position Filter */}
           <div className="flex gap-2">
             {[
-              { value: 'all', label: 'All', count: stats.total },
-              { value: 'top', label: 'TOP 1', count: stats.top1, color: 'emerald' },
-              { value: 'need_action', label: 'Need Action', count: stats.needAction, color: 'amber' },
-              { value: 'missing', label: 'Missing', count: stats.missing, color: 'rose' },
+              { value: 'all', label: 'Все', count: stats.total },
+              { value: 'top', label: 'ТОП 1', count: stats.top1, color: 'emerald' },
+              { value: 'need_action', label: 'Требуют действий', count: stats.needAction, color: 'amber' },
+              { value: 'missing', label: 'Отсутствуют', count: stats.missing, color: 'rose' },
             ].map((filter) => (
               <button
                 key={filter.value}
@@ -145,7 +145,7 @@ export default function Comparison() {
           className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center"
         >
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-          <p className="text-sm text-gray-500">Total Products</p>
+          <p className="text-sm text-gray-500">Всего товаров</p>
         </motion.div>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -154,7 +154,7 @@ export default function Comparison() {
           className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 text-center"
         >
           <p className="text-2xl font-bold text-emerald-600">{stats.top1}</p>
-          <p className="text-sm text-emerald-600">TOP 1 Position</p>
+          <p className="text-sm text-emerald-600">ТОП 1</p>
         </motion.div>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -163,7 +163,7 @@ export default function Comparison() {
           className="bg-amber-50 rounded-xl p-4 border border-amber-100 text-center"
         >
           <p className="text-2xl font-bold text-amber-600">{stats.needAction}</p>
-          <p className="text-sm text-amber-600">Need Action</p>
+          <p className="text-sm text-amber-600">Требуют действий</p>
         </motion.div>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -172,7 +172,7 @@ export default function Comparison() {
           className="bg-rose-50 rounded-xl p-4 border border-rose-100 text-center"
         >
           <p className="text-2xl font-bold text-rose-600">{stats.missing}</p>
-          <p className="text-sm text-rose-600">Missing Products</p>
+          <p className="text-sm text-rose-600">Отсутствуют</p>
         </motion.div>
       </div>
 

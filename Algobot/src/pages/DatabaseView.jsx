@@ -40,10 +40,10 @@ export default function DatabaseView() {
   };
 
   const tables = [
-    { id: 'aggregators', name: 'Aggregators', count: data.aggregators.length, color: '#10b981' },
-    { id: 'categories', name: 'Categories', count: data.categories.length, color: '#3b82f6' },
-    { id: 'products', name: 'Products', count: data.products.length, color: '#8b5cf6' },
-    { id: 'recommendations', name: 'Recommendations', count: data.recommendations.length, color: '#f59e0b' },
+    { id: 'aggregators', name: 'Агрегаторы', count: data.aggregators.length, color: '#10b981' },
+    { id: 'categories', name: 'Категории', count: data.categories.length, color: '#3b82f6' },
+    { id: 'products', name: 'Товары', count: data.products.length, color: '#8b5cf6' },
+    { id: 'recommendations', name: 'Рекомендации', count: data.recommendations.length, color: '#f59e0b' },
   ];
 
   const renderTableContent = () => {
@@ -54,9 +54,9 @@ export default function DatabaseView() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">ID</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Name</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Color</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Is Our Company</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Название</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Цвет</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Наша компания</th>
               </tr>
             </thead>
             <tbody>
@@ -85,7 +85,7 @@ export default function DatabaseView() {
                         ? 'bg-emerald-100 text-emerald-700'
                         : 'bg-gray-100 text-gray-600'
                     }`}>
-                      {item.is_our_company ? 'Yes' : 'No'}
+                      {item.is_our_company ? 'Да' : 'Нет'}
                     </span>
                   </td>
                 </motion.tr>
@@ -93,15 +93,14 @@ export default function DatabaseView() {
             </tbody>
           </table>
         );
-
       case 'categories':
         return (
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">ID</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Name</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Icon</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Название</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Иконка</th>
               </tr>
             </thead>
             <tbody>
@@ -121,19 +120,18 @@ export default function DatabaseView() {
             </tbody>
           </table>
         );
-
       case 'products':
         return (
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">ID</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Name</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Category</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Название</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Категория</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Glovo</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Yandex</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Wolt</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Position</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Позиция</th>
               </tr>
             </thead>
             <tbody>
@@ -172,15 +170,15 @@ export default function DatabaseView() {
                   <td className="py-3 px-4">
                     {item.our_position === 1 ? (
                       <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
-                        TOP 1
+                        ТОП 1
                       </span>
                     ) : item.our_position ? (
                       <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
-                        #{item.our_position}
+                        №{item.our_position}
                       </span>
                     ) : (
                       <span className="px-2 py-1 bg-rose-100 text-rose-700 rounded-full text-xs font-medium">
-                        N/A
+                        Нет
                       </span>
                     )}
                   </td>
@@ -189,19 +187,18 @@ export default function DatabaseView() {
             </tbody>
           </table>
         );
-
       case 'recommendations':
         return (
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">ID</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Product</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Action</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Current</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Recommended</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Priority</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Status</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Товар</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Действие</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Текущая</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Рекомендуемая</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Приоритет</th>
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Статус</th>
               </tr>
             </thead>
             <tbody>
@@ -221,7 +218,7 @@ export default function DatabaseView() {
                         ? 'bg-amber-100 text-amber-700'
                         : 'bg-emerald-100 text-emerald-700'
                     }`}>
-                      {item.action_type === 'LOWER_PRICE' ? 'Lower Price' : 'Add Product'}
+                      {item.action_type === 'LOWER_PRICE' ? 'Снизить цену' : 'Добавить товар'}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-600">
@@ -238,7 +235,11 @@ export default function DatabaseView() {
                         ? 'bg-amber-100 text-amber-700'
                         : 'bg-blue-100 text-blue-700'
                     }`}>
-                      {item.priority}
+                      {item.priority === 'HIGH'
+                        ? 'Высокий'
+                        : item.priority === 'MEDIUM'
+                        ? 'Средний'
+                        : 'Низкий'}
                     </span>
                   </td>
                   <td className="py-3 px-4">
@@ -249,7 +250,11 @@ export default function DatabaseView() {
                         ? 'bg-gray-100 text-gray-600'
                         : 'bg-amber-100 text-amber-700'
                     }`}>
-                      {item.status}
+                      {item.status === 'APPLIED'
+                        ? 'Применено'
+                        : item.status === 'REJECTED'
+                        ? 'Отклонено'
+                        : 'В ожидании'}
                     </span>
                   </td>
                 </motion.tr>
@@ -257,7 +262,6 @@ export default function DatabaseView() {
             </tbody>
           </table>
         );
-
       default:
         return null;
     }
@@ -268,15 +272,15 @@ export default function DatabaseView() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Database View</h1>
-          <p className="text-gray-500 mt-1">Explore the underlying data structure</p>
+          <h1 className="text-2xl font-bold text-gray-900">База данных</h1>
+          <p className="text-gray-500 mt-1">Изучите структуру и данные</p>
         </div>
         <button
           onClick={fetchAllData}
           className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
+          Обновить
         </button>
       </div>
 
@@ -322,18 +326,18 @@ export default function DatabaseView() {
 
           {/* Schema Info */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mt-4">
-            <h4 className="font-semibold text-gray-700 mb-3">Schema Info</h4>
+            <h4 className="font-semibold text-gray-700 mb-3">Схема</h4>
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between text-gray-600">
                 <span>PostgreSQL</span>
                 <span className="text-emerald-600">v17</span>
               </div>
               <div className="flex items-center justify-between text-gray-600">
-                <span>Tables</span>
+                <span>Таблиц</span>
                 <span>{tables.length}</span>
               </div>
               <div className="flex items-center justify-between text-gray-600">
-                <span>Total Records</span>
+                <span>Всего записей</span>
                 <span>{tables.reduce((acc, t) => acc + t.count, 0)}</span>
               </div>
             </div>
@@ -354,7 +358,7 @@ export default function DatabaseView() {
                 {tables.find((t) => t.id === activeTable)?.name}
               </h3>
               <span className="text-sm text-gray-500">
-                ({tables.find((t) => t.id === activeTable)?.count} records)
+                ({tables.find((t) => t.id === activeTable)?.count} записей)
               </span>
             </div>
 

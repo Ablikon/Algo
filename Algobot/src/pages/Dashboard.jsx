@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   ShoppingCart,
   Lightbulb,
-  PiggyBank,
   Target,
   TrendingUp,
   ArrowRight,
@@ -17,6 +16,30 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import StatsCard from '../components/StatsCard';
 import ComparisonTable from '../components/ComparisonTable';
 import { analyticsAPI, productsAPI } from '../services/api';
+
+function HorseIcon(props) {
+  return (
+    <svg
+      width={24}
+      height={24}
+      fill="none"
+      stroke="#10b981"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+      {...props}
+    >
+      <path d="M20 16v-2a4 4 0 0 0-4-4H7.5a3.5 3.5 0 0 0 0 7H9"/>
+      <path d="M20 16v2a2 2 0 0 1-2 2h-1"/>
+      <path d="M8 20v-2"/>
+      <path d="M12 20v-2"/>
+      <path d="M20 8V6a2 2 0 0 0-2-2h-2.5a2 2 0 0 0-1.7.9l-3.8 5.7"/>
+      <path d="M8 14v-2"/>
+      <circle cx="16" cy="8" r="1"/>
+    </svg>
+  );
+}
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -73,45 +96,45 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 mt-1">Monitor your competitive position in real-time</p>
+          <h1 className="text-2xl font-bold text-gray-900">Дашборд</h1>
+          <p className="text-gray-500 mt-1">Следите за своей позицией на рынке в реальном времени</p>
         </div>
         <button
           onClick={fetchData}
           className="flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl font-medium transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
-          Refresh
+          Обновить
         </button>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard
-          title="Total Products"
+          title="Всего товаров"
           value={stats?.total_products || 0}
-          subtitle="In market"
+          subtitle="В ассортименте"
           icon={Package}
           color="blue"
         />
         <StatsCard
-          title="TOP 1 Position"
+          title="Позиция ТОП 1"
           value={stats?.products_at_top || 0}
-          subtitle={`${stats?.price_competitiveness || 0}% of our catalog`}
+          subtitle={`${stats?.price_competitiveness || 0}% нашего каталога`}
           icon={Trophy}
           color="emerald"
         />
         <StatsCard
-          title="Need Action"
+          title="Требуют действий"
           value={stats?.products_need_action || 0}
-          subtitle="Price adjustments needed"
+          subtitle="Нужна корректировка цены"
           icon={AlertTriangle}
           color="amber"
         />
         <StatsCard
-          title="Missing Products"
+          title="Отсутствуют"
           value={stats?.missing_products || 0}
-          subtitle="Competitor-only products"
+          subtitle="Только у конкурентов"
           icon={ShoppingCart}
           color="rose"
         />
@@ -120,30 +143,30 @@ export default function Dashboard() {
       {/* Second Row Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard
-          title="Pending Recommendations"
+          title="Ожидают решения"
           value={stats?.pending_recommendations || 0}
-          subtitle="Awaiting action"
+          subtitle="Ожидают действий"
           icon={Lightbulb}
           color="purple"
         />
         <StatsCard
-          title="Potential Savings"
+          title="Потенциальная экономия"
           value={`${stats?.potential_savings?.toLocaleString() || 0}₸`}
-          subtitle="If all applied"
-          icon={PiggyBank}
+          subtitle="Если применить все"
+          icon={HorseIcon}
           color="emerald"
         />
         <StatsCard
-          title="Market Coverage"
+          title="Покрытие рынка"
           value={`${stats?.market_coverage || 0}%`}
-          subtitle="Products available"
+          subtitle="Товаров в наличии"
           icon={Target}
           color="blue"
         />
         <StatsCard
-          title="Price Competitiveness"
+          title="Ценовая конкурентность"
           value={`${stats?.price_competitiveness || 0}%`}
-          subtitle="At TOP 1 position"
+          subtitle="В позиции ТОП 1"
           icon={TrendingUp}
           color="emerald"
         />
@@ -157,7 +180,7 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Status Distribution</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Распределение статусов товаров</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -195,7 +218,7 @@ export default function Dashboard() {
           transition={{ delay: 0.1 }}
           className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Market Coverage Comparison</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Сравнение покрытия рынка</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData} layout="vertical">
@@ -212,12 +235,12 @@ export default function Dashboard() {
       {/* Price Comparison Preview */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Price Comparison</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Сравнение цен</h3>
           <Link
             to="/comparison"
             className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-medium text-sm"
           >
-            View All <ArrowRight className="w-4 h-4" />
+            Смотреть все <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
         <ComparisonTable products={products} compact />

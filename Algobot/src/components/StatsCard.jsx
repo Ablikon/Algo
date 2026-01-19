@@ -43,7 +43,7 @@ export default function StatsCard({ title, value, subtitle, icon: Icon, color, t
               trend > 0 ? 'text-emerald-600' : 'text-rose-600'
             }`}>
               <span>{trend > 0 ? '+' : ''}{trend}%</span>
-              <span className="text-gray-400">vs last week</span>
+              <span className="text-gray-400">по сравнению с прошлой неделей</span>
             </div>
           )}
         </div>

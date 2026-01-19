@@ -3,11 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, RotateCcw, CheckCircle, AlertTriangle, Plus, ArrowRight } from 'lucide-react';
 
 const STEPS = [
-  { id: 1, name: 'Fetch Data', description: 'Loading products and prices from all aggregators' },
-  { id: 2, name: 'Analyze', description: 'Comparing prices across competitors' },
-  { id: 3, name: 'Identify Gaps', description: 'Finding missing products in our catalog' },
-  { id: 4, name: 'Calculate', description: 'Computing optimal prices for TOP-1 position' },
-  { id: 5, name: 'Generate', description: 'Creating actionable recommendations' },
+  { id: 1, name: 'Загрузка', description: 'Загрузка товаров и цен со всех агрегаторов' },
+  { id: 2, name: 'Анализ', description: 'Сравнение цен конкурентов' },
+  { id: 3, name: 'Поиск дефицита', description: 'Поиск отсутствующих товаров в нашем каталоге' },
+  { id: 4, name: 'Расчёт', description: 'Вычисление оптимальных цен для ТОП-1' },
+  { id: 5, name: 'Генерация', description: 'Создание рекомендаций к действию' },
 ];
 
 const sampleProducts = [
@@ -86,11 +86,11 @@ export default function AlgorithmVisualizer() {
   const getActionText = (action) => {
     switch (action) {
       case 'lower':
-        return 'Lower Price';
+        return 'Снизить цену';
       case 'add':
-        return 'Add Product';
+        return 'Добавить товар';
       case 'top':
-        return 'TOP 1';
+        return 'ТОП 1';
       default:
         return '';
     }
@@ -100,8 +100,8 @@ export default function AlgorithmVisualizer() {
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Algorithm Visualization</h3>
-          <p className="text-sm text-gray-500">Watch how ScoutAlgo analyzes prices in real-time</p>
+          <h3 className="text-lg font-semibold text-gray-900">Визуализация алгоритма</h3>
+          <p className="text-sm text-gray-500">Посмотрите, как ScoutAlgo анализирует цены в реальном времени</p>
         </div>
         <div className="flex gap-2">
           {!isRunning && currentStep === 0 && (
@@ -110,7 +110,7 @@ export default function AlgorithmVisualizer() {
               className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
             >
               <Play className="w-4 h-4" />
-              Run Algorithm
+              Запустить алгоритм
             </button>
           )}
           {isRunning && (
@@ -119,7 +119,7 @@ export default function AlgorithmVisualizer() {
               className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl font-medium transition-colors"
             >
               <Pause className="w-4 h-4" />
-              Pause
+              Пауза
             </button>
           )}
           {currentStep > 0 && (
@@ -128,7 +128,7 @@ export default function AlgorithmVisualizer() {
               className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl font-medium transition-colors"
             >
               <RotateCcw className="w-4 h-4" />
-              Reset
+              Сбросить
             </button>
           )}
         </div>
@@ -210,7 +210,7 @@ export default function AlgorithmVisualizer() {
       {/* Product Analysis Animation */}
       {(currentStep >= 2 || analyzedProducts.length > 0) && (
         <div className="space-y-3">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">Analysis Results:</h4>
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">Результаты анализа:</h4>
           <AnimatePresence>
             {analyzedProducts.map((product, index) => (
               <motion.div
@@ -271,9 +271,9 @@ export default function AlgorithmVisualizer() {
           className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 text-center"
         >
           <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-          <h4 className="text-lg font-semibold text-emerald-800 mb-1">Analysis Complete!</h4>
+          <h4 className="text-lg font-semibold text-emerald-800 mb-1">Анализ завершён!</h4>
           <p className="text-emerald-600">
-            Found {analyzedProducts.filter(p => p.action !== 'top').length} recommendations to achieve TOP-1 position
+            Найдено {analyzedProducts.filter(p => p.action !== 'top').length} рекомендаций для достижения ТОП-1
           </p>
         </motion.div>
       )}

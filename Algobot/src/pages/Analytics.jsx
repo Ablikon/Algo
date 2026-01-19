@@ -74,15 +74,15 @@ export default function Analytics() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-          <p className="text-gray-500 mt-1">Deep insights into market positioning and opportunities</p>
+          <h1 className="text-2xl font-bold text-gray-900">Аналитика</h1>
+          <p className="text-gray-500 mt-1">Глубокая аналитика позиций и возможностей на рынке</p>
         </div>
         <button
           onClick={fetchData}
           className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
-          Refresh
+          Обновить
         </button>
       </div>
 
@@ -94,7 +94,7 @@ export default function Analytics() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Price Comparison by Product</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Сравнение цен по товарам</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={priceComparisonData}>
@@ -148,7 +148,7 @@ export default function Analytics() {
           transition={{ delay: 0.1 }}
           className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Market Share Trend (Projected)</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Динамика доли рынка (прогноз)</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={marketShareData}>
@@ -207,20 +207,20 @@ export default function Analytics() {
               <AlertCircle className="w-5 h-5 text-rose-600" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Market Gaps</h3>
-              <p className="text-sm text-gray-500">Products missing from our catalog</p>
+              <h3 className="text-lg font-semibold text-gray-900">Дефицит на рынке</h3>
+              <p className="text-sm text-gray-500">Товары, которых нет в нашем каталоге</p>
             </div>
           </div>
           <span className="px-3 py-1 bg-rose-100 text-rose-700 rounded-full text-sm font-medium">
-            {gaps.length} gaps found
+            {gaps.length} найдено
           </span>
         </div>
 
         {gaps.length === 0 ? (
           <div className="text-center py-12 bg-emerald-50 rounded-xl">
             <TrendingUp className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-            <p className="text-emerald-700 font-medium">No market gaps!</p>
-            <p className="text-emerald-600 text-sm">All competitor products are covered</p>
+            <p className="text-emerald-700 font-medium">Дефицита нет!</p>
+            <p className="text-emerald-600 text-sm">Все товары конкурентов покрыты</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -241,16 +241,16 @@ export default function Analytics() {
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-right">
-                    <p className="text-sm text-gray-500">Competitor Min</p>
+                    <p className="text-sm text-gray-500">Мин. у конкурентов</p>
                     <p className="font-semibold text-gray-900">{gap.min_competitor_price}₸</p>
                   </div>
                   <ArrowRight className="w-5 h-5 text-gray-400" />
                   <div className="text-right">
-                    <p className="text-sm text-gray-500">Suggested Price</p>
+                    <p className="text-sm text-gray-500">Рекомендуемая цена</p>
                     <p className="font-semibold text-emerald-600">{gap.suggested_price}₸</p>
                   </div>
                   <button className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-xl text-sm font-medium transition-colors">
-                    Add Product
+                    Добавить товар
                   </button>
                 </div>
               </motion.div>

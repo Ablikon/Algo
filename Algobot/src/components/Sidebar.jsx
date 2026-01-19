@@ -9,11 +9,11 @@ import {
 } from 'lucide-react';
 
 const menuItems = [
-  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/comparison', icon: Table2, label: 'Price Comparison' },
-  { path: '/recommendations', icon: Lightbulb, label: 'Recommendations' },
-  { path: '/analytics', icon: TrendingUp, label: 'Analytics' },
-  { path: '/database', icon: Database, label: 'Database View' },
+  { path: '/', icon: LayoutDashboard, label: 'Дашборд' },
+  { path: '/comparison', icon: Table2, label: 'Сравнение цен' },
+  { path: '/recommendations', icon: Lightbulb, label: 'Рекомендации' },
+  { path: '/analytics', icon: TrendingUp, label: 'Аналитика' },
+  { path: '/database', icon: Database, label: 'База данных' },
 ];
 
 export default function Sidebar() {
@@ -55,8 +55,8 @@ export default function Sidebar() {
 
       <div className="absolute bottom-0 left-0 w-64 p-4 border-t border-gray-200">
         <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl p-4 text-white">
-          <h3 className="font-semibold mb-1">Glovo Partner</h3>
-          <p className="text-sm text-emerald-100">Optimizing for #1 position</p>
+          <h3 className="font-semibold mb-1">Партнёр Glovo</h3>
+          <p className="text-sm text-emerald-100">Оптимизация для позиции №1</p>
         </div>
       </div>
     </aside>

@@ -11,6 +11,12 @@ export default function RecommendationCard({ recommendation, onApply, onReject, 
     LOW: 'bg-blue-100 text-blue-700 border-blue-200',
   };
 
+  const priorityLabels = {
+    HIGH: 'Высокий',
+    MEDIUM: 'Средний',
+    LOW: 'Низкий',
+  };
+
   const formatPrice = (price) => {
     if (price === null || price === undefined) return '—';
     return `${Number(price).toLocaleString()}₸`;
@@ -46,7 +52,7 @@ export default function RecommendationCard({ recommendation, onApply, onReject, 
           </div>
         </div>
         <span className={`px-3 py-1 rounded-full text-xs font-medium border ${priorityColors[recommendation.priority]}`}>
-          {recommendation.priority}
+          {priorityLabels[recommendation.priority] || recommendation.priority}
         </span>
       </div>
 
@@ -54,7 +60,7 @@ export default function RecommendationCard({ recommendation, onApply, onReject, 
         <div className="flex items-center justify-between">
           <div className="text-center">
             <p className="text-xs text-gray-500 mb-1">
-              {isAddProduct ? 'Not Available' : 'Current'}
+              {isAddProduct ? 'Нет в наличии' : 'Текущая'}
             </p>
             <p className={`text-lg font-bold ${isAddProduct ? 'text-gray-400' : 'text-gray-900'}`}>
               {isAddProduct ? '—' : formatPrice(recommendation.current_price)}
@@ -69,7 +75,7 @@ export default function RecommendationCard({ recommendation, onApply, onReject, 
           </motion.div>
 
           <div className="text-center">
-            <p className="text-xs text-gray-500 mb-1">Recommended</p>
+            <p className="text-xs text-gray-500 mb-1">Рекомендуемая</p>
             <p className="text-lg font-bold text-emerald-600">
               {formatPrice(recommendation.recommended_price)}
             </p>
@@ -79,15 +85,15 @@ export default function RecommendationCard({ recommendation, onApply, onReject, 
         {recommendation.potential_savings && (
           <div className="mt-3 pt-3 border-t border-gray-200 text-center">
             <p className="text-sm text-gray-500">
-              Savings: <span className="font-semibold text-emerald-600">{formatPrice(recommendation.potential_savings)}</span>
+              Экономия: <span className="font-semibold text-emerald-600">{formatPrice(recommendation.potential_savings)}</span>
             </p>
           </div>
         )}
       </div>
 
       <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-        <span>Competitor min: {formatPrice(recommendation.competitor_price)}</span>
-        <span className="text-emerald-600 font-medium">-1₸ undercut</span>
+        <span>Мин. у конкурентов: {formatPrice(recommendation.competitor_price)}</span>
+        <span className="text-emerald-600 font-medium">-1₸ ниже</span>
       </div>
 
       {recommendation.status === 'PENDING' && (
@@ -98,7 +104,7 @@ export default function RecommendationCard({ recommendation, onApply, onReject, 
             className="flex-1 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50"
           >
             <Check className="w-4 h-4" />
-            {isApplying ? 'Applying...' : 'Apply'}
+            {isApplying ? 'Применение...' : 'Применить'}
           </button>
           <button
             onClick={() => onReject(recommendation.id)}
@@ -106,7 +112,7 @@ export default function RecommendationCard({ recommendation, onApply, onReject, 
             className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50"
           >
             <X className="w-4 h-4" />
-            Reject
+            Отклонить
           </button>
         </div>
       )}
@@ -114,14 +120,14 @@ export default function RecommendationCard({ recommendation, onApply, onReject, 
       {recommendation.status === 'APPLIED' && (
         <div className="flex items-center justify-center gap-2 text-emerald-600 py-2.5">
           <Check className="w-5 h-5" />
-          <span className="font-medium">Applied Successfully</span>
+          <span className="font-medium">Успешно применено</span>
         </div>
       )}
 
       {recommendation.status === 'REJECTED' && (
         <div className="flex items-center justify-center gap-2 text-gray-500 py-2.5">
           <X className="w-5 h-5" />
-          <span className="font-medium">Rejected</span>
+          <span className="font-medium">Отклонено</span>
         </div>
       )}
     </motion.div>

@@ -13,7 +13,7 @@ export default function ComparisonTable({ products, compact = false }) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
           <Minus className="w-3 h-3" />
-          N/A
+          Нет
         </span>
       );
     }
@@ -21,14 +21,14 @@ export default function ComparisonTable({ products, compact = false }) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
           <CheckCircle className="w-3 h-3" />
-          TOP 1
+          ТОП 1
         </span>
       );
     }
     return (
       <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
         <AlertTriangle className="w-3 h-3" />
-        #{position}
+        №{position}
       </span>
     );
   };
@@ -43,7 +43,7 @@ export default function ComparisonTable({ products, compact = false }) {
       return (
         <div className="flex items-center gap-2 text-gray-400">
           <XCircle className="w-4 h-4" />
-          <span>Not available</span>
+          <span>Нет в наличии</span>
         </div>
       );
     }
@@ -54,7 +54,7 @@ export default function ComparisonTable({ products, compact = false }) {
     return (
       <div className={`font-semibold ${isMin ? 'text-emerald-600' : isGlovo ? 'text-gray-900' : 'text-gray-600'}`}>
         {formatPrice(price)}
-        {isMin && <span className="ml-2 text-xs text-emerald-500">MIN</span>}
+        {isMin && <span className="ml-2 text-xs text-emerald-500">МИН</span>}
       </div>
     );
   };
@@ -71,7 +71,7 @@ export default function ComparisonTable({ products, compact = false }) {
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Product</th>
+              <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Товар</th>
               <th className="text-center py-4 px-4">
                 <div className="flex items-center justify-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: aggregatorColors.glovo }} />
@@ -90,7 +90,7 @@ export default function ComparisonTable({ products, compact = false }) {
                   <span className="text-sm font-semibold text-gray-600">Wolt</span>
                 </div>
               </th>
-              <th className="text-center py-4 px-6 text-sm font-semibold text-gray-600">Our Position</th>
+              <th className="text-center py-4 px-6 text-sm font-semibold text-gray-600">Наша позиция</th>
             </tr>
           </thead>
           <tbody>
