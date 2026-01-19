@@ -234,6 +234,8 @@ class ProductComparisonSerializer(serializers.ModelSerializer):
 class RecommendationSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     category_name = serializers.CharField(source='product.category.name', read_only=True)
+    brand = serializers.CharField(source='product.brand', read_only=True)
+    country = serializers.CharField(source='product.country_of_origin', read_only=True)
 
     class Meta:
         model = Recommendation

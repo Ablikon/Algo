@@ -4,6 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 export default function RecommendationCard({ recommendation, onApply, onReject, isApplying }) {
   const { t } = useLanguage();
+  console.log('Recommendation data:', recommendation);
   const isLowerPrice = recommendation.action_type === 'LOWER_PRICE';
   const isAddProduct = recommendation.action_type === 'ADD_PRODUCT';
 
@@ -27,10 +28,10 @@ export default function RecommendationCard({ recommendation, onApply, onReject, 
   return (
     <div
       className={`bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border transition-all h-full flex flex-col ${recommendation.status === 'APPLIED'
-          ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20'
-          : recommendation.status === 'REJECTED'
-            ? 'border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 opacity-60'
-            : 'border-gray-100 dark:border-slate-700 hover:shadow-md hover:border-gray-200 dark:hover:border-slate-600'
+        ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20'
+        : recommendation.status === 'REJECTED'
+          ? 'border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 opacity-60'
+          : 'border-gray-100 dark:border-slate-700 hover:shadow-md hover:border-gray-200 dark:hover:border-slate-600'
         }`}
     >
       {/* Header - Fixed height */}
@@ -45,8 +46,24 @@ export default function RecommendationCard({ recommendation, onApply, onReject, 
             )}
           </div>
           <div className="min-w-0">
-            <h3 className="font-semibold text-gray-900 dark:text-white truncate">{recommendation.product_name}</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{recommendation.category_name}</p>
+            <h3 className="font-semibold text-gray-900 dark:text-white truncate" title={recommendation.product_name}>{recommendation.product_name}</h3>
+            <div className="flex items-center gap-2 overflow-hidden">
+              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{recommendation.category_name}</p>
+              {(recommendation.brand || recommendation.country) && (
+                <div className="flex items-center gap-1 shrink-0">
+                  {recommendation.brand && (
+                    <span className="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">
+                      {recommendation.brand}
+                    </span>
+                  )}
+                  {recommendation.country && (
+                    <span className="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">
+                      {recommendation.country}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <span className={`px-2.5 py-1 rounded-full text-xs font-medium border flex-shrink-0 ${priorityColors[recommendation.priority]}`}>

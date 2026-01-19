@@ -95,8 +95,8 @@ export default function ComparisonTable({ products, compact = false, showNormali
           <button
             onClick={onToggleNormalized}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${showNormalized
-                ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
-                : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+              ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
+              : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
               }`}
           >
             <Scale className="w-4 h-4" />
@@ -153,6 +153,11 @@ export default function ComparisonTable({ products, compact = false, showNormali
                         {product.brand && (
                           <span className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded">
                             {product.brand}
+                          </span>
+                        )}
+                        {product.country_of_origin && (
+                          <span className="text-xs bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded">
+                            {product.country_of_origin}
                           </span>
                         )}
                       </div>
