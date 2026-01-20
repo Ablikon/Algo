@@ -31,14 +31,8 @@ export const categoriesAPI = {
 
 export const productsAPI = {
   getAll: () => api.get('/products/'),
-  getComparison: (params) => {
-    // Check if params is an object (new style) or old style (page, pageSize)
-    const requestParams = typeof params === 'object' && params !== null
-      ? params
-      : { page: arguments[0] || 1, page_size: arguments[1] || 50 };
-
-    return api.get('/products/comparison/', { params: requestParams });
-  },
+  // accept optional params object -> passed to request as query params
+  getComparison: (params = {}) => api.get('/products/comparison/', { params }),
 };
 
 export const recommendationsAPI = {

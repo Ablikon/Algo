@@ -24,6 +24,10 @@ export default function Comparison() {
   }, [refreshKey]); // Refetch when city changes
 
   useEffect(() => {
+    fetchData();
+  }, [selectedCategories]); // refetch when selected categories change
+
+  useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowCategoryDropdown(false);
@@ -48,7 +52,6 @@ export default function Comparison() {
         categoriesAPI.getTree(),
       ]);
 
-      // Handle paginated response and metadata
       const productsData = productsRes.data.results || productsRes.data;
       const metaData = productsRes.data.meta || {};
 
@@ -56,7 +59,6 @@ export default function Comparison() {
       setCategories(categoriesRes.data);
       setCategoryTree(treeRes.data);
 
-      // Store aggregators for the table if needed
       if (metaData.aggregators) {
         window.allAggregators = metaData.aggregators;
       }

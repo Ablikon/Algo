@@ -15,6 +15,7 @@ export default function DatabaseView() {
     categories: [],
     products: [],
     recommendations: [],
+    productsTotal: 0,
   });
   const [loading, setLoading] = useState(true);
   const { t } = useLanguage();
@@ -29,15 +30,17 @@ export default function DatabaseView() {
       const [aggregatorsRes, categoriesRes, productsRes, recommendationsRes] = await Promise.all([
         aggregatorsAPI.getAll(),
         categoriesAPI.getAll(),
-        productsAPI.getComparison(1, 100), // Get first 100 for table view
+        productsAPI.getComparison({ page: 1, page_size: 100 }),
         recommendationsAPI.getAll(),
       ]);
+      const productsList = productsRes.data.results || productsRes.data;
+      const productsTotal = productsRes.data.meta?.total_count ?? productsList.length;
       setData({
         aggregators: aggregatorsRes.data,
         categories: categoriesRes.data,
-        // Handle paginated response
-        products: productsRes.data.results || productsRes.data,
+        products: productsList,
         recommendations: recommendationsRes.data,
+        productsTotal,
       });
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -49,7 +52,7 @@ export default function DatabaseView() {
   const tables = [
     { id: 'aggregators', name: t('aggregators'), count: data.aggregators.length, color: '#10b981' },
     { id: 'categories', name: t('categories'), count: data.categories.length, color: '#3b82f6' },
-    { id: 'products', name: t('products'), count: data.products.length, color: '#8b5cf6' },
+    { id: 'products', name: t('products'), count: data.productsTotal || data.products.length, color: '#8b5cf6' },
     { id: 'recommendations', name: t('recommendations'), count: data.recommendations.length, color: '#f59e0b' },
   ];
 

@@ -33,7 +33,7 @@ export default function Analytics() {
     try {
       const [gapsRes, productsRes] = await Promise.all([
         analyticsAPI.getGaps(),
-        productsAPI.getComparison(1, 100), // Get first 100 for charts
+        productsAPI.getComparison({ page: 1, page_size: 100 }),
       ]);
       setGaps(gapsRes.data.results || gapsRes.data);
       setProducts(productsRes.data.results || productsRes.data);

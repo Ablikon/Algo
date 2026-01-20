@@ -60,10 +60,9 @@ export default function Dashboard() {
     try {
       const [statsRes, productsRes] = await Promise.all([
         analyticsAPI.getDashboard(),
-        productsAPI.getComparison(1, 10), // Get first 10 products for preview
+        productsAPI.getComparison({ page: 1, page_size: 10 }),
       ]);
       setStats(statsRes.data);
-      // Handle paginated response
       setProducts(productsRes.data.results || productsRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
