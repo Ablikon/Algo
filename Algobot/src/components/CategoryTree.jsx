@@ -27,8 +27,8 @@ function CategoryNode({ category, selectedCategories, onToggle, level = 0, searc
     <div className="select-none">
       <div
         className={`group flex items-center gap-3 py-2 px-3 my-0.5 mx-1 rounded-xl cursor-pointer transition-all ${isSelected
-            ? 'bg-emerald-50 border border-emerald-100'
-            : 'hover:bg-gray-50 border border-transparent'
+          ? 'bg-emerald-50 border border-emerald-100'
+          : 'hover:bg-gray-50 border border-transparent'
           }`}
         style={{ marginLeft: `${level * 12}px` }}
         onClick={handleExpandClick}
@@ -43,8 +43,8 @@ function CategoryNode({ category, selectedCategories, onToggle, level = 0, searc
         <div
           onClick={handleCheckboxClick}
           className={`shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all shadow-sm ${isSelected
-              ? 'bg-emerald-500 border-emerald-500 shadow-emerald-200'
-              : 'bg-white border-gray-300 group-hover:border-emerald-400'
+            ? 'bg-emerald-500 border-emerald-500 shadow-emerald-200'
+            : 'bg-white border-gray-300 group-hover:border-emerald-400'
             }`}
         >
           {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3px]" />}
@@ -56,8 +56,8 @@ function CategoryNode({ category, selectedCategories, onToggle, level = 0, searc
           ) : (
             <Layers className={`w-4 h-4 ${isSelected ? 'text-emerald-600' : 'text-gray-400'}`} />
           )}
-          <span className={`text-sm font-medium truncate ${isSelected ? 'text-emerald-900' : 'text-gray-700'
-            }`}>
+          <span className={`text-sm font-bold truncate ${isSelected ? 'text-emerald-900 line-clamp-1' : 'text-gray-700'
+            }`} title={category.name}>
             {category.name}
           </span>
         </div>
@@ -182,7 +182,7 @@ export default function CategoryTree({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-2xl p-3 w-[320px] max-h-[600px] flex flex-col overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-2xl p-3 min-w-[320px] max-w-[400px] max-h-[600px] flex flex-col overflow-hidden">
       {/* Search Header */}
       <div className="mb-4 space-y-3">
         <div className="relative">
@@ -210,8 +210,8 @@ export default function CategoryTree({
             onClick={handleSelectAll}
           >
             <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selectedCategories.length > 0
-                ? 'bg-emerald-500 border-emerald-500'
-                : 'border-gray-300 dark:border-slate-600'
+              ? 'bg-emerald-500 border-emerald-500'
+              : 'border-gray-300 dark:border-slate-600'
               }`}>
               {selectedCategories.length > 0 && <Check className="w-3.5 h-3.5 text-white" />}
             </div>

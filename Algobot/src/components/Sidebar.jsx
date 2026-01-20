@@ -14,7 +14,8 @@ import {
   Sun,
   ChevronDown,
   Globe,
-  MapPin
+  MapPin,
+  Check
 } from 'lucide-react';
 
 export default function Sidebar() {

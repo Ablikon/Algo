@@ -1,0 +1,22 @@
+# Backend
+backend/.env
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/db.sqlite3
+backend/media/
+
+# Frontend (Algobot)
+Algobot/node_modules/
+Algobot/dist/
+Algobot/.env
+Algobot/.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+.claude/

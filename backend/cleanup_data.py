@@ -27,7 +27,6 @@ def cleanup_data():
         if not children.exists():
             return set()
         child_ids = set(children.values_list('id', flat=True))
-        # Remove already known IDs to avoid infinite loops (though shouldn't happen in a tree)
         new_ids = child_ids - cat_ids
         if not new_ids:
             return set()
@@ -45,25 +44,34 @@ def cleanup_data():
     print("Restructuring category hierarchy...")
     
     # Create or get Root categories
-    drinks_root, _ = Category.objects.get_or_create(name="Напитки", defaults={'parent': None})
-    sweets_root, _ = Category.objects.get_or_create(name="Кондитерские изделия", defaults={'parent': None})
-    eggs_root, _ = Category.objects.get_or_create(name="Молочные продукты и яйца", defaults={'parent': None})
+    def get_root(name, icon):
+        roots = Category.objects.filter(name=name, parent__isnull=True)
+        if roots.exists():
+            return roots.first()
+        # If exists but has parent, let's keep it as is and create NEW root or promote it?
+        # Better: create unique roots
+        root, _ = Category.objects.get_or_create(name=name, parent__isnull=True, defaults={'icon': icon})
+        return root
+
+    drinks_root = get_root("Напитки", "Coffee")
+    sweets_root = get_root("Шоколад и конфеты", "Cookie")
+    eggs_root = get_root("Яйца", "Egg")
 
     # Move target categories under roots
     for cat in Category.objects.filter(id__in=all_target_cat_ids):
+        if cat.id in [drinks_root.id, sweets_root.id, eggs_root.id]:
+            continue
+            
         name_lower = cat.name.lower()
         if any(kw in name_lower for kw in ["газиров", "напит", "кола", "пепси", "фанта", "спрайт"]):
-            if cat != drinks_root:
-                cat.parent = drinks_root
-                cat.save()
+            cat.parent = drinks_root
+            cat.save()
         elif any(kw in name_lower for kw in ["шоколад", "конфет"]):
-            if cat != sweets_root:
-                cat.parent = sweets_root
-                cat.save()
+            cat.parent = sweets_root
+            cat.save()
         elif "яйц" in name_lower:
-            if cat != eggs_root:
-                cat.parent = eggs_root
-                cat.save()
+            cat.parent = eggs_root
+            cat.save()
 
     # 4. Delete irrelevant data
     print("Deleting irrelevant products and related data...")

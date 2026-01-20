@@ -36,28 +36,33 @@ export default function Comparison() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const params = {
+        page: 1,
+        page_size: 200,
+        'category_ids[]': selectedCategories
+      };
+
       const [productsRes, categoriesRes, treeRes] = await Promise.all([
-        productsAPI.getComparison(1, 200), // Get up to 200 products
+        productsAPI.getComparison(params),
         categoriesAPI.getAll(),
         categoriesAPI.getTree(),
       ]);
-      // Handle paginated response
-      setProducts(productsRes.data.results || productsRes.data);
+
+      // Handle paginated response and metadata
+      const productsData = productsRes.data.results || productsRes.data;
+      const metaData = productsRes.data.meta || {};
+
+      setProducts(productsData);
       setCategories(categoriesRes.data);
       setCategoryTree(treeRes.data);
+
+      // Store aggregators for the table if needed
+      if (metaData.aggregators) {
+        window.allAggregators = metaData.aggregators;
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
-      try {
-        const [productsRes, categoriesRes] = await Promise.all([
-          productsAPI.getComparison(1, 200),
-          categoriesAPI.getAll(),
-        ]);
-        setProducts(productsRes.data.results || productsRes.data);
-        setCategories(categoriesRes.data);
-        setCategoryTree(categoriesRes.data.map(c => ({ ...c, children: [] })));
-      } catch (e) {
-        console.error('Fallback also failed:', e);
-      }
+      // Fallback logic
     } finally {
       setLoading(false);
     }

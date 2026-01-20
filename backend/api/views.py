@@ -65,25 +65,67 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['get'])
     def comparison(self, request):
+        city_slug = request.GET.get('city')
+        category_ids = request.GET.getlist('category_ids[]')
+        
         price_qs = Price.objects.select_related('aggregator')
-        if request.GET.get('city'):
-            price_qs = price_qs.filter(city__slug=request.GET.get('city'))
+        if city_slug:
+            price_qs = price_qs.filter(city__slug=city_slug)
 
-        products = Product.objects.all().select_related('category').prefetch_related(
+        products = Product.objects.all().select_related('category')
+
+        if category_ids:
+            try:
+                all_ids = set(map(int, category_ids))
+                current_batch = list(all_ids)
+                
+                while current_batch:
+                    # Get next level of children
+                    children_ids = list(Category.objects.filter(parent_id__in=current_batch).values_list('id', flat=True))
+                    # Filter out those we already have
+                    new_ids = [cid for cid in children_ids if cid not in all_ids]
+                    all_ids.update(new_ids)
+                    current_batch = new_ids
+                
+                products = products.filter(category_id__in=all_ids)
+            except Exception as e:
+                print(f"Error filtering categories: {e}")
+
+        # Prefetch prices and links
+        products = products.prefetch_related(
             Prefetch('price_set', queryset=price_qs, to_attr='filtered_prices'),
             'links'
         )
+
+        # Apply sorting: 1. Number of prices (matches) desc, 2. Priority? 
+        # For now, let's just sort by number of prices found in prefetch
+        # Actually, let's do matching density sorting in Python or with Annotation
+        products = products.annotate(
+            price_count=Count('price', filter=Q(price__is_available=True) & (Q(price__city__slug=city_slug) if city_slug else Q()))
+        ).order_by('-price_count', 'name')
 
         # Apply pagination
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(products, request)
 
+        # Get list of all aggregators for the frontend to show all columns
+        aggregators = AggregatorSerializer(Aggregator.objects.all(), many=True).data
+
         if page is not None:
             serializer = ProductComparisonSerializer(page, many=True, context={'request': request})
-            return paginator.get_paginated_response(serializer.data)
+            response_data = paginator.get_paginated_response(serializer.data)
+            response_data.data['meta'] = {
+                'aggregators': aggregators
+            }
+            return response_data
 
         serializer = ProductComparisonSerializer(products, many=True, context={'request': request})
-        return Response(serializer.data)
+        return Response({
+            'results': serializer.data,
+            'meta': {
+                'aggregators': aggregators
+            }
+        })
 
 
 class RecommendationViewSet(viewsets.ModelViewSet):
