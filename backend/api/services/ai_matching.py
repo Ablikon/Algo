@@ -14,7 +14,7 @@ class AIProductMapper:
         self.config = config or {
             'api_key': os.getenv('OPENAI_API_KEY'),
             'model': os.getenv('OPENAI_MODEL', 'gpt-4o-mini'),
-            'match_threshold': 85
+            'match_threshold': 90
         }
         self.client = OpenAI(api_key=self.config['api_key'])
 
@@ -39,37 +39,42 @@ class AIProductMapper:
         return any(kw in cat_name for kw in brandless_keywords)
 
     def build_prompt(self, product, candidates):
-        product_name = product.name
-        product_brand = product.brand or "Не указан"
-        product_weight = f"{product.weight_value}{product.weight_unit}" if product.weight_value else "Не указан"
+        product_name = product.title  # Updated to match prompt
+        product_brand = product.brand or "Не указан"  # Updated to match prompt
+        product_weight = product.weight or product.volume or 'Не указан'  # Updated to match prompt
+        product_weight_normalized = productWeight or '-'  # Assuming productWeight is defined elsewhere or set to '-'
         is_brandless = self.is_brandless(product)
 
-        prompt = f"""Ты эксперт по сопоставлению товаров. Найди СОВПАДЕНИЕ для товара среди кандидатов из маркетплейсов.
+        prompt = f"""Ты эксперт по сопоставлению товаров. Найди СОВПАДЕНИЕ для товара среди кандидатов.
 
 ✅ ПРАВИЛА МАППИНГА:
 1. Если уверенность ≥{self.config['match_threshold']}% → "match", иначе → "no_match"
 { '2. ⚠️ ТОВАР БЕЗ БРЕНДА (овощи/фрукты/мясо/яйца) - бренд НЕ проверяй!' if is_brandless else '2. ✅ Бренд ДОЛЖЕН совпадать (учитывай транслитерацию)' }
-3. ✅ Вес/объем: допуск ±50г/мл
+3. ✅ Вес/объем: допуск ±100г/мл
 4. ✅ Вкус: похожие вкусы = не совпадение
-5. ✅ Размер/количество: должны совпадать (72шт ≠ 54шт)
 
-📦 Товар в нашей базе:
+📦 Товар:
 Название: {product_name}
 { '⚠️ БЕЗБРЕНДОВЫЙ' if is_brandless else f'Бренд: {product_brand}' }
-Вес/Объем: {product_weight}
+Вес/Объем: {product_weight} ({product_weight_normalized})
 
-🎯 Кандидаты (другие агрегаторы):
+🎯 Кандидаты из CSV:
 """
         for i, c in enumerate(candidates):
-            prompt += f"{i + 1}. ID: {c['id']}\n   Название: {c['name']}\n   Бренд: {c.get('brand', 'Не указан')}\n   Вес: {c.get('weight', 'Не указан')}\n   Агрегатор: {c.get('aggregator', '-')}\n\n"
+            csv_brand = c.csv.brand or c.csv.extractedBrand or 'Не указан'
+            csv_category = c.csv.category_full or c.csv.category_1 or '-'
+            prompt += f"{i + 1}. UUID: {c.csv.uuid}\n   Название: {c.csv.name}\n   Бренд: {csv_brand}\n   Вес: {c.csv.weight} ({c.csv.normalizedWeight or '-'})\n   Категория: {csv_category}\n\n"
 
-        prompt += """Верни СТРОГО в формате JSON:
+        prompt += """
+Верни СТРОГО в формате JSON:
 {
-  "matched_candidate_id": "ID кандидата или null",
+  "matched_uuid": "UUID из CSV или null",
+  "matched_csv_title": "Название из CSV или null",
   "match_confidence": 0-100,
   "best_match": "match" | "no_match",
   "reason": "Краткое объяснение"
-}"""
+}
+"""
         return prompt
 
     def map_product_to_candidates(self, product, candidates_data):
@@ -77,7 +82,8 @@ class AIProductMapper:
             return {
                 "best_match": "no_match",
                 "match_confidence": 0,
-                "matched_candidate_id": None,
+                "matched_uuid": None,
+                "matched_csv_title": None,
                 "reason": "Нет кандидатов для сопоставления"
             }
 
@@ -93,12 +99,14 @@ class AIProductMapper:
             )
             
             content = response.choices[0].message.content
-            return json.loads(content)
+            result = json.loads(content)
+            return result  # Return directly as it matches the format
         except Exception as e:
             print(f"Error calling OpenAI: {e}")
             return {
                 "best_match": "no_match",
                 "match_confidence": 0,
-                "matched_candidate_id": None,
+                "matched_uuid": None,
+                "matched_csv_title": None,
                 "reason": f"Ошибка OpenAI: {str(e)}"
             }

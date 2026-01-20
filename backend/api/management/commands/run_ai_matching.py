@@ -99,32 +99,38 @@ class Command(BaseCommand):
             # 3. AI Comparison
             result = mapper.map_product_to_candidates(product, candidates_data)
             
-            if result.get('best_match') == 'match' and result.get('match_confidence', 0) >= 85:
-                matched_id = result.get('matched_candidate_id')
+            if result.get('best_match') == 'match' and result.get('match_confidence', 0) >= 90:
+                matched_uuid = result.get('matched_uuid')
                 confidence = result.get('match_confidence')
                 
-                # Find the actual candidate product
-                candidate_prod = Product.objects.get(id=matched_id)
-                self.stdout.write(self.style.SUCCESS(f"  MATCH FOUND ({confidence}%): {candidate_prod.name}"))
+                # Find the actual candidate product by uuid
+                candidate_prod = None
+                for c in candidates_data:
+                    if c['csv']['uuid'] == matched_uuid:  # Assuming candidates_data has 'csv' key
+                        candidate_prod = Product.objects.get(id=c['id'])
+                        break
                 
-                # 4. Link/Copy Prices
-                # We copy the price from the candidate's aggregator to OUR product
-                comp_prices = Price.objects.filter(product=candidate_prod, city=city).exclude(aggregator=our_agg)
-                
-                for cp in comp_prices:
-                    Price.objects.update_or_create(
-                        product=product,
-                        aggregator=cp.aggregator,
-                        city=city,
-                        defaults={
-                            'price': cp.price,
-                            'is_available': cp.is_available,
-                            'competitor_brand': cp.competitor_brand,
-                            'competitor_country': cp.competitor_country
-                        }
-                    )
-                    self.stdout.write(f"    - Linked price from {cp.aggregator.name}: {cp.price}")
-                
+                if candidate_prod:
+                    self.stdout.write(self.style.SUCCESS(f"  MATCH FOUND ({confidence}%): {candidate_prod.name}"))
+                    
+                    # 4. Link/Copy Prices
+                    comp_prices = Price.objects.filter(product=candidate_prod, city=city).exclude(aggregator=our_agg)
+                    
+                    for cp in comp_prices:
+                        Price.objects.update_or_create(
+                            product=product,
+                            aggregator=cp.aggregator,
+                            city=city,
+                            defaults={
+                                'price': cp.price,
+                                'is_available': cp.is_available,
+                                'competitor_brand': cp.competitor_brand,
+                                'competitor_country': cp.competitor_country
+                            }
+                        )
+                        self.stdout.write(f"    - Linked price from {cp.aggregator.name}: {cp.price}")
+                else:
+                    self.stdout.write(self.style.WARNING(f"  Candidate product not found for uuid {matched_uuid}"))
             else:
                 self.stdout.write(self.style.WARNING(f"  No match found. Reason: {result.get('reason')}"))
 
