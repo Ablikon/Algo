@@ -24,7 +24,7 @@ export default function Recommendations() {
     setLoading(true);
     try {
       const res = await recommendationsAPI.getAll();
-      setRecommendations(res.data);
+      setRecommendations(res.data.results || res.data);
     } catch (error) {
       console.error('Error fetching recommendations:', error);
     } finally {
@@ -175,8 +175,8 @@ export default function Recommendations() {
             key={f.value}
             onClick={() => setFilter(f.value)}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filter === f.value
-                ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                : 'bg-white dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-600 border border-gray-200 dark:border-slate-600'
+              ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+              : 'bg-white dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-600 border border-gray-200 dark:border-slate-600'
               }`}
           >
             {f.label}

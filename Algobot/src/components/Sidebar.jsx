@@ -52,7 +52,7 @@ export default function Sidebar() {
   const currentLang = languages.find(l => l.code === language);
 
   return (
-    <aside className="w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 h-screen sticky top-0 flex flex-col shadow-xl z-20">
+    <aside className="w-64 flex-shrink-0 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 h-screen sticky top-0 flex flex-col shadow-xl z-20">
       {/* Logo */}
       <div className="p-6 shrink-0 border-b border-gray-50 dark:border-slate-700/50">
         <div className="flex items-center gap-3">

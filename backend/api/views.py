@@ -258,8 +258,8 @@ def analytics_gaps(request):
                 'product_id': product.id,
                 'product_name': product.name,
                 'category': product.category.name if product.category else None,
-                'min_competitor_price': min_price,
-                'suggested_price': round(min_price - 1, 2)
+                'min_competitor_price': float(min_price),
+                'suggested_price': float(round(min_price - 1, 2))
             })
 
     return Response(gaps[:100])  # Limit to 100 results for performance

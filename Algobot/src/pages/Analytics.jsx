@@ -15,26 +15,27 @@ import {
 } from 'recharts';
 import { analyticsAPI, productsAPI } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
+import { useCity } from '../contexts/CityContext';
 
 export default function Analytics() {
   const [gaps, setGaps] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { theme } = useTheme();
+  const { refreshKey } = useCity();
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [refreshKey]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const [gapsRes, productsRes] = await Promise.all([
         analyticsAPI.getGaps(),
-        productsAPI.getComparison(),
+        productsAPI.getComparison(1, 100), // Get first 100 for charts
       ]);
-      setGaps(gapsRes.data);
-      setProducts(productsRes.data);
+      setGaps(gapsRes.data.results || gapsRes.data);
+      setProducts(productsRes.data.results || productsRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
