@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 
 const CityContext = createContext();
@@ -7,6 +7,8 @@ export function CityProvider({ children }) {
     const [cities, setCities] = useState([]);
     const [currentCity, setCurrentCity] = useState(null);
     const [loading, setLoading] = useState(true);
+    // refreshKey is used to trigger data refresh in components when city changes
+    const [refreshKey, setRefreshKey] = useState(0);
 
     useEffect(() => {
         fetchCities();
@@ -24,6 +26,7 @@ export function CityProvider({ children }) {
                     setCurrentCity(found);
                 } else {
                     setCurrentCity(response.data[0]);
+                    localStorage.setItem('selectedCity', response.data[0].slug);
                 }
             }
         } catch (error) {
@@ -33,16 +36,16 @@ export function CityProvider({ children }) {
         }
     };
 
-    const selectCity = (city) => {
+    const selectCity = useCallback((city) => {
         setCurrentCity(city);
         localStorage.setItem('selectedCity', city.slug);
-        // Reload validation or create a reload mechanism?
-        // Usually changing context triggers re-renders which should re-fetch data if they depend on context
-        window.location.reload(); // Simple brute force update for now to ensure all queries refresh with new city
-    };
+        // Increment refreshKey to trigger data refresh in all components
+        // that depend on city without full page reload
+        setRefreshKey(prev => prev + 1);
+    }, []);
 
     return (
-        <CityContext.Provider value={{ cities, currentCity, selectCity, loading }}>
+        <CityContext.Provider value={{ cities, currentCity, selectCity, loading, refreshKey }}>
             {children}
         </CityContext.Provider>
     );

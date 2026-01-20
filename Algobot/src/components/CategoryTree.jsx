@@ -1,19 +1,16 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronDown, Folder, FolderOpen, Check, Layers } from 'lucide-react';
+import { ChevronRight, ChevronDown, Folder, FolderOpen, Check, Layers, Search, X } from 'lucide-react';
 
-function CategoryNode({ category, selectedCategories, onToggle, level = 0 }) {
-  const [isExpanded, setIsExpanded] = useState(level === 0);
+function CategoryNode({ category, selectedCategories, onToggle, level = 0, searchTerm = '' }) {
+  const [isExpanded, setIsExpanded] = useState(level === 0 || searchTerm.length > 0);
   const hasChildren = category.children && category.children.length > 0;
   const isSelected = selectedCategories.includes(category.id);
 
-  // Check if all children are selected
-  const allChildrenSelected = hasChildren && category.children.every(
-    child => selectedCategories.includes(child.id)
-  );
-  const someChildrenSelected = hasChildren && category.children.some(
-    child => selectedCategories.includes(child.id)
-  );
+  // If we are searching, expand nodes that have children matching the search
+  if (searchTerm.length > 0 && hasChildren && !isExpanded) {
+    setIsExpanded(true);
+  }
 
   const handleCheckboxClick = (e) => {
     e.stopPropagation();
@@ -29,65 +26,50 @@ function CategoryNode({ category, selectedCategories, onToggle, level = 0 }) {
   return (
     <div className="select-none">
       <div
-        className={`group flex items-center gap-3 py-2 px-3 my-1 mx-1 rounded-xl cursor-pointer transition-all ${
-          isSelected 
-            ? 'bg-emerald-50 border border-emerald-100' 
+        className={`group flex items-center gap-3 py-2 px-3 my-0.5 mx-1 rounded-xl cursor-pointer transition-all ${isSelected
+            ? 'bg-emerald-50 border border-emerald-100'
             : 'hover:bg-gray-50 border border-transparent'
-        }`}
+          }`}
         style={{ marginLeft: `${level * 12}px` }}
         onClick={handleExpandClick}
       >
-        {/* Expand/Collapse Control */}
-        <div className={`p-1 rounded-lg transition-colors ${
-          hasChildren ? 'hover:bg-black/5 text-gray-400' : 'opacity-0'
-        }`}>
+        <div className={`p-1 rounded-lg transition-colors ${hasChildren ? 'hover:bg-black/5 text-gray-400' : 'opacity-0'
+          }`}>
           {hasChildren && (
             isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
           )}
         </div>
 
-        {/* Custom Checkbox */}
         <div
           onClick={handleCheckboxClick}
-          className={`shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all shadow-sm ${
-            isSelected || allChildrenSelected
+          className={`shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all shadow-sm ${isSelected
               ? 'bg-emerald-500 border-emerald-500 shadow-emerald-200'
-              : someChildrenSelected
-              ? 'bg-white border-emerald-500'
               : 'bg-white border-gray-300 group-hover:border-emerald-400'
-          }`}
+            }`}
         >
-          {(isSelected || allChildrenSelected) && <Check className="w-3.5 h-3.5 text-white stroke-[3px]" />}
-          {someChildrenSelected && !isSelected && !allChildrenSelected && (
-            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-sm" />
+          {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3px]" />}
+        </div>
+
+        <div className="flex-1 flex items-center gap-2 min-w-0">
+          {hasChildren ? (
+            isExpanded ? <FolderOpen className="w-4 h-4 text-amber-500" /> : <Folder className="w-4 h-4 text-amber-500" />
+          ) : (
+            <Layers className={`w-4 h-4 ${isSelected ? 'text-emerald-600' : 'text-gray-400'}`} />
           )}
-        </div>
-
-        {/* Icon & Name */}
-        <div className="flex-1 flex items-center gap-2">
-           {hasChildren ? (
-             isExpanded ? <FolderOpen className="w-4 h-4 text-amber-500" /> : <Folder className="w-4 h-4 text-amber-500" />
-           ) : (
-             <Layers className={`w-4 h-4 ${isSelected ? 'text-emerald-600' : 'text-gray-400'}`} />
-           )}
-           <span className={`text-sm font-medium ${
-             isSelected ? 'text-emerald-900' : 'text-gray-700'
-           }`}>
+          <span className={`text-sm font-medium truncate ${isSelected ? 'text-emerald-900' : 'text-gray-700'
+            }`}>
             {category.name}
-           </span>
+          </span>
         </div>
 
-        {/* Count Badge */}
         {category.product_count > 0 && (
-          <span className={`text-xs px-2 py-0.5 rounded-full ${
-            isSelected ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
-          }`}>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isSelected ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+            }`}>
             {category.product_count}
           </span>
         )}
       </div>
 
-      {/* Children */}
       <AnimatePresence>
         {hasChildren && isExpanded && (
           <motion.div
@@ -104,6 +86,7 @@ function CategoryNode({ category, selectedCategories, onToggle, level = 0 }) {
                 selectedCategories={selectedCategories}
                 onToggle={onToggle}
                 level={level + 1}
+                searchTerm={searchTerm}
               />
             ))}
           </motion.div>
@@ -119,32 +102,64 @@ export default function CategoryTree({
   onChange,
   showSelectAll = true,
 }) {
-  const handleToggle = (categoryId, children) => {
-    let newSelected = [...selectedCategories];
+  const [searchTerm, setSearchTerm] = useState('');
 
-    if (newSelected.includes(categoryId)) {
-      // Deselect: remove category and its children
-      newSelected = newSelected.filter(id => id !== categoryId);
-      if (children.length > 0) {
-        const childIds = children.map(c => c.id);
-        newSelected = newSelected.filter(id => !childIds.includes(id));
-      }
-    } else {
-      // Select: add category
-      newSelected.push(categoryId);
-      // Optional: Auto-select children? The user said "Worker needs only Dairy".
-      // If parent is selected, usually we show everything inside parent.
-      // But filtering logic calculates "OR" or "AND"?
-      // Comparison.jsx: `selectedCategories.includes(product.category_id)`
-      // So if I select Parent but NOT Child, products in Child won't show unless Child logic is handled.
-      // So YES, I must select all children too.
-      if (children.length > 0) {
-        children.forEach(child => {
-          if (!newSelected.includes(child.id)) {
-            newSelected.push(child.id);
-          }
+  const filterCategories = (cats, term) => {
+    if (!term) return cats;
+    return cats.reduce((acc, cat) => {
+      const matches = cat.name.toLowerCase().includes(term.toLowerCase());
+      const childMatches = cat.children ? filterCategories(cat.children, term) : [];
+
+      if (matches || childMatches.length > 0) {
+        acc.push({
+          ...cat,
+          children: childMatches
         });
       }
+      return acc;
+    }, []);
+  };
+
+  const filteredCategories = useMemo(() =>
+    filterCategories(categories, searchTerm),
+    [categories, searchTerm]
+  );
+
+  const handleToggle = (categoryId, children) => {
+    let newSelected = [...selectedCategories];
+    const isCurrentlySelected = newSelected.includes(categoryId);
+
+    const getDeepIds = (cat) => {
+      let ids = [cat.id];
+      if (cat.children) {
+        cat.children.forEach(c => {
+          ids = [...ids, ...getDeepIds(c)];
+        });
+      }
+      return ids;
+    };
+
+    // Find the category object to get all nested children IDs
+    const findCat = (cats, id) => {
+      for (const cat of cats) {
+        if (cat.id === id) return cat;
+        if (cat.children) {
+          const found = findCat(cat.children, id);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const catObj = findCat(categories, categoryId);
+    const affectedIds = catObj ? getDeepIds(catObj) : [categoryId];
+
+    if (isCurrentlySelected) {
+      newSelected = newSelected.filter(id => !affectedIds.includes(id));
+    } else {
+      affectedIds.forEach(id => {
+        if (!newSelected.includes(id)) newSelected.push(id);
+      });
     }
 
     onChange(newSelected);
@@ -167,41 +182,72 @@ export default function CategoryTree({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-lg p-2 max-h-[500px] overflow-y-auto">
-      {showSelectAll && (
-        <div className="sticky top-0 bg-white z-10 pb-2 mb-2 border-b border-gray-100">
-             <div
-            className="flex items-center gap-3 py-2 px-3 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors"
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-2xl p-3 w-[320px] max-h-[600px] flex flex-col overflow-hidden">
+      {/* Search Header */}
+      <div className="mb-4 space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Поиск категорий..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all dark:text-white"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-full text-gray-400"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {showSelectAll && categories.length > 0 && (
+          <div
+            className="flex items-center gap-3 py-2 px-3 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors border border-dashed border-gray-200 dark:border-slate-700"
             onClick={handleSelectAll}
           >
-            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-               selectedCategories.length > 0
+            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selectedCategories.length > 0
                 ? 'bg-emerald-500 border-emerald-500'
-                : 'border-gray-300'
-            }`}>
+                : 'border-gray-300 dark:border-slate-600'
+              }`}>
               {selectedCategories.length > 0 && <Check className="w-3.5 h-3.5 text-white" />}
             </div>
-            <span className="text-sm font-semibold text-gray-700">
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
               {selectedCategories.length === 0 ? 'Выбрать все' : 'Снять выделение'}
             </span>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      <div className="space-y-0.5">
-        {categories.map((category) => (
+      {/* Tree Content */}
+      <div className="flex-1 overflow-y-auto pr-1 space-y-0.5 custom-scrollbar">
+        {filteredCategories.map((category) => (
           <CategoryNode
             key={category.id}
             category={category}
             selectedCategories={selectedCategories}
             onToggle={handleToggle}
+            searchTerm={searchTerm}
           />
         ))}
 
-        {categories.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-            <Folder className="w-8 h-8 mb-2 opacity-50" />
-            <span className="text-sm">Категории не найдены</span>
+        {filteredCategories.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+            <div className="bg-gray-50 dark:bg-slate-900 p-4 rounded-full mb-3">
+              <Search className="w-8 h-8 opacity-20" />
+            </div>
+            <span className="text-sm font-medium">Ничего не найдено</span>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="mt-2 text-xs text-emerald-500 hover:underline"
+              >
+                Сбросить поиск
+              </button>
+            )}
           </div>
         )}
       </div>

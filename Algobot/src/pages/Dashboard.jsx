@@ -18,6 +18,7 @@ import StatsCard from '../components/StatsCard';
 import ComparisonTable from '../components/ComparisonTable';
 import { analyticsAPI, productsAPI } from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useCity } from '../contexts/CityContext';
 
 function HorseIcon(props) {
   return (
@@ -45,23 +46,25 @@ function HorseIcon(props) {
 
 export default function Dashboard() {
   const { t } = useLanguage();
+  const { refreshKey } = useCity();
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [refreshKey]); // Refetch when city changes
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const [statsRes, productsRes] = await Promise.all([
         analyticsAPI.getDashboard(),
-        productsAPI.getComparison(),
+        productsAPI.getComparison(1, 10), // Get first 10 products for preview
       ]);
       setStats(statsRes.data);
-      setProducts(productsRes.data);
+      // Handle paginated response
+      setProducts(productsRes.data.results || productsRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {

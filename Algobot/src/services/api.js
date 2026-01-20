@@ -31,7 +31,9 @@ export const categoriesAPI = {
 
 export const productsAPI = {
   getAll: () => api.get('/products/'),
-  getComparison: () => api.get('/products/comparison/'),
+  getComparison: (page = 1, pageSize = 50) => api.get('/products/comparison/', {
+    params: { page, page_size: pageSize }
+  }),
 };
 
 export const recommendationsAPI = {

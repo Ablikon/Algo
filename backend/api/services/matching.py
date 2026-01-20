@@ -1,9 +1,112 @@
 from decimal import Decimal
-from ..models import Price, Recommendation, Aggregator
+from ..models import Price, Recommendation, Aggregator, City
 
 class ProductMatcher:
     def __init__(self):
         self.our_aggregator = Aggregator.objects.filter(is_our_company=True).first()
+
+    def run_with_cached_prices(self, product, cached_prices, city_slug=None):
+        """Run algorithm using pre-fetched prices instead of querying DB"""
+        our_price_obj = None
+        competitor_prices = []
+
+        for price in cached_prices:
+            if price.aggregator.is_our_company:
+                our_price_obj = price
+            elif price.is_available and price.price:
+                competitor_prices.append({
+                    'raw_price': float(price.price),
+                    'normalized_price': self.normalize_price(product, price.price),
+                    'aggregator': price.aggregator.name
+                })
+
+        if not competitor_prices:
+            return None
+
+        # Filter valid competitors (same brand/country)
+        valid_competitors = []
+        for comp in competitor_prices:
+            is_brand_mismatch = False
+            if product.brand and comp.get('competitor_brand'):
+                if product.brand.lower() != comp['competitor_brand'].lower():
+                    is_brand_mismatch = True
+
+            is_country_mismatch = False
+            if product.country_of_origin and comp.get('competitor_country'):
+                if product.country_of_origin.lower() != comp['competitor_country'].lower():
+                    is_country_mismatch = True
+
+            if is_brand_mismatch or is_country_mismatch:
+                continue
+            valid_competitors.append(comp)
+
+        if not valid_competitors:
+            if competitor_prices:
+                # Fallback to all competitors if no exact matches
+                valid_competitors = competitor_prices
+            else:
+                return None
+
+        best_competitor = min(valid_competitors, key=lambda x: x['normalized_price'])
+
+        our_raw = float(our_price_obj.price) if (our_price_obj and our_price_obj.price) else None
+        our_norm = self.normalize_price(product, our_price_obj.price) if our_raw else None
+
+        # Check for existing pending recommendation
+        existing = Recommendation.objects.filter(
+            product=product,
+            status='PENDING'
+        ).exists()
+
+        if existing:
+            return None
+
+        target_norm = best_competitor['normalized_price'] * 0.99
+        target_raw = self.denormalize_price(product, target_norm)
+
+        # Get city object if slug provided
+        city = None
+        if city_slug:
+            city = City.objects.filter(slug=city_slug).first()
+
+        rec = None
+
+        if not our_raw:
+            rec = Recommendation(
+                product=product,
+                action_type='ADD_PRODUCT',
+                current_price=None,
+                recommended_price=target_raw,
+                competitor_price=Decimal(str(best_competitor['raw_price'])),
+                priority='HIGH',
+                status='PENDING',
+                city=city
+            )
+
+        elif our_norm > best_competitor['normalized_price']:
+            savings = our_raw - float(target_raw)
+            priority = 'LOW'
+            if savings > 50:
+                priority = 'HIGH'
+            elif savings > 10:
+                priority = 'MEDIUM'
+
+            rec = Recommendation(
+                product=product,
+                action_type='LOWER_PRICE',
+                current_price=Decimal(str(our_raw)),
+                recommended_price=target_raw,
+                competitor_price=Decimal(str(best_competitor['raw_price'])),
+                potential_savings=Decimal(str(savings)),
+                priority=priority,
+                status='PENDING',
+                city=city
+            )
+
+        if rec:
+            rec.save()
+            return rec
+        return None
 
     def normalize_price(self, product, price_value):
         """Returns price per kg/l if weight is available, else raw price"""

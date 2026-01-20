@@ -4,8 +4,10 @@ import { Search, Filter, RefreshCw, Download, ChevronDown, X } from 'lucide-reac
 import ComparisonTable from '../components/ComparisonTable';
 import CategoryTree from '../components/CategoryTree';
 import { productsAPI, categoriesAPI } from '../services/api';
+import { useCity } from '../contexts/CityContext';
 
 export default function Comparison() {
+  const { refreshKey } = useCity();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [categoryTree, setCategoryTree] = useState([]);
@@ -19,7 +21,7 @@ export default function Comparison() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [refreshKey]); // Refetch when city changes
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -35,21 +37,22 @@ export default function Comparison() {
     setLoading(true);
     try {
       const [productsRes, categoriesRes, treeRes] = await Promise.all([
-        productsAPI.getComparison(),
+        productsAPI.getComparison(1, 200), // Get up to 200 products
         categoriesAPI.getAll(),
         categoriesAPI.getTree(),
       ]);
-      setProducts(productsRes.data);
+      // Handle paginated response
+      setProducts(productsRes.data.results || productsRes.data);
       setCategories(categoriesRes.data);
       setCategoryTree(treeRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
       try {
         const [productsRes, categoriesRes] = await Promise.all([
-          productsAPI.getComparison(),
+          productsAPI.getComparison(1, 200),
           categoriesAPI.getAll(),
         ]);
-        setProducts(productsRes.data);
+        setProducts(productsRes.data.results || productsRes.data);
         setCategories(categoriesRes.data);
         setCategoryTree(categoriesRes.data.map(c => ({ ...c, children: [] })));
       } catch (e) {
@@ -183,8 +186,8 @@ export default function Comparison() {
                 key={f.value}
                 onClick={() => setFilterPosition(f.value)}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filterPosition === f.value
-                    ? 'bg-gray-900 dark:bg-emerald-600 text-white'
-                    : 'bg-gray-50 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600 border border-gray-200 dark:border-slate-600'
+                  ? 'bg-gray-900 dark:bg-emerald-600 text-white'
+                  : 'bg-gray-50 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600 border border-gray-200 dark:border-slate-600'
                   }`}
               >
                 {f.label}
@@ -222,12 +225,34 @@ export default function Comparison() {
         <div className="flex items-center justify-center h-64">
           <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin" />
         </div>
-      ) : (
+      ) : filteredProducts.length > 0 ? (
         <ComparisonTable
           products={filteredProducts}
           showNormalized={showNormalized}
           onToggleNormalized={() => setShowNormalized(!showNormalized)}
         />
+      ) : (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center border border-dashed border-gray-200 dark:border-slate-700 shadow-sm">
+          <div className="bg-gray-50 dark:bg-slate-900 p-6 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+            <Search className="w-10 h-10 text-gray-300 dark:text-gray-600" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Товары не найдены</h3>
+          <p className="text-gray-500 dark:text-gray-400 max-w-xs mx-auto mb-6">
+            Попробуйте изменить параметры поиска или фильтры категорий, чтобы увидеть результаты
+          </p>
+          {(searchTerm || selectedCategories.length > 0 || filterPosition !== 'all') && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedCategories([]);
+                setFilterPosition('all');
+              }}
+              className="text-emerald-500 font-semibold hover:underline"
+            >
+              Сбросить все фильтры
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

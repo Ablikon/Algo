@@ -10,7 +10,16 @@
       "Bash(curl:*)",
       "Bash(pg_isready:*)",
       "Bash(lsof:*)",
-      "Bash(python manage.py runserver:*)"
+      "Bash(python manage.py runserver:*)",
+      "Bash(wc:*)",
+      "Bash(du:*)",
+      "Bash(find:*)",
+      "Bash(python manage.py import_json_data:*)",
+      "Bash(python3 manage.py import_json_data:*)",
+      "Bash(python:*)",
+      "Bash(ls:*)",
+      "Bash(python3 manage.py migrate:*)",
+      "Bash(python3:*)"
     ]
   }
 }

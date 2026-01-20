@@ -4,8 +4,10 @@ import { Database, Table2, RefreshCw, ChevronRight, Circle, Upload } from 'lucid
 import { aggregatorsAPI, categoriesAPI, productsAPI, recommendationsAPI } from '../services/api';
 import BulkImport from '../components/BulkImport';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useCity } from '../contexts/CityContext';
 
 export default function DatabaseView() {
+  const { refreshKey } = useCity();
   const [activeTable, setActiveTable] = useState('aggregators');
   const [showImport, setShowImport] = useState(false);
   const [data, setData] = useState({
@@ -19,7 +21,7 @@ export default function DatabaseView() {
 
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [refreshKey]); // Refetch when city changes
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -27,13 +29,14 @@ export default function DatabaseView() {
       const [aggregatorsRes, categoriesRes, productsRes, recommendationsRes] = await Promise.all([
         aggregatorsAPI.getAll(),
         categoriesAPI.getAll(),
-        productsAPI.getComparison(),
+        productsAPI.getComparison(1, 100), // Get first 100 for table view
         recommendationsAPI.getAll(),
       ]);
       setData({
         aggregators: aggregatorsRes.data,
         categories: categoriesRes.data,
-        products: productsRes.data,
+        // Handle paginated response
+        products: productsRes.data.results || productsRes.data,
         recommendations: recommendationsRes.data,
       });
     } catch (error) {

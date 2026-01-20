@@ -5,8 +5,10 @@ import RecommendationCard from '../components/RecommendationCard';
 import AlgorithmVisualizer from '../components/AlgorithmVisualizer';
 import { NoRecommendations } from '../components/EmptyState';
 import { recommendationsAPI, algorithmAPI } from '../services/api';
+import { useCity } from '../contexts/CityContext';
 
 export default function Recommendations() {
+  const { refreshKey } = useCity();
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [applyingId, setApplyingId] = useState(null);
@@ -16,7 +18,7 @@ export default function Recommendations() {
 
   useEffect(() => {
     fetchRecommendations();
-  }, []);
+  }, [refreshKey]); // Refetch when city changes
 
   const fetchRecommendations = async () => {
     setLoading(true);

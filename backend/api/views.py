@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, action, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from django.db.models import Count, Sum, Q, Prefetch
 from django.http import HttpResponse
 from django.utils import timezone
@@ -11,6 +12,14 @@ import io
 import pandas as pd
 
 from .models import Aggregator, Category, Product, Price, Recommendation, PriceHistory, ProductLink, ImportJob, City
+
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 200
+
+
 from .serializers import (
     AggregatorSerializer,
     CitySerializer,
@@ -64,6 +73,15 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             Prefetch('price_set', queryset=price_qs, to_attr='filtered_prices'),
             'links'
         )
+
+        # Apply pagination
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(products, request)
+
+        if page is not None:
+            serializer = ProductComparisonSerializer(page, many=True, context={'request': request})
+            return paginator.get_paginated_response(serializer.data)
+
         serializer = ProductComparisonSerializer(products, many=True, context={'request': request})
         return Response(serializer.data)
 
@@ -127,49 +145,65 @@ class RecommendationViewSet(viewsets.ModelViewSet):
 
 @api_view(['GET'])
 def dashboard_stats(request):
-    our_aggregator = Aggregator.objects.filter(is_our_company=True).first()
-    total_products = Product.objects.count()
+    """Optimized dashboard stats using prefetch instead of N+1 queries"""
+    city_slug = request.GET.get('city')
 
+    # Build city filter for prices
+    price_filter = Q(is_available=True, price__isnull=False)
+    if city_slug:
+        price_filter &= Q(city__slug=city_slug)
+
+    # Prefetch all prices in one query
+    price_prefetch = Prefetch(
+        'price_set',
+        queryset=Price.objects.filter(price_filter).select_related('aggregator'),
+        to_attr='cached_prices'
+    )
+
+    products = Product.objects.prefetch_related(price_prefetch)
+
+    total_products = 0
     products_at_top = 0
     products_need_action = 0
     missing_products = 0
 
-    for product in Product.objects.all():
-        prices = Price.objects.filter(product=product).select_related('aggregator')
-        if request.GET.get('city'):
-            prices = prices.filter(city__slug=request.GET.get('city'))
+    for product in products:
+        total_products += 1
+        prices = product.cached_prices
+
         our_price = None
         competitor_prices = []
-        has_our_product = False
 
         for price in prices:
             if price.aggregator.is_our_company:
-                if price.is_available and price.price:
-                    our_price = float(price.price)
-                    has_our_product = True
+                our_price = float(price.price)
             else:
-                if price.is_available and price.price:
-                    competitor_prices.append(float(price.price))
+                competitor_prices.append(float(price.price))
 
-        if not has_our_product:
+        if our_price is None:
             missing_products += 1
-        elif our_price and competitor_prices:
+        elif competitor_prices:
             min_competitor = min(competitor_prices)
-            # TOP 1 только если СТРОГО меньше
             if our_price < min_competitor:
                 products_at_top += 1
             else:
-                # Равная цена или выше = нужно действие
                 products_need_action += 1
+        else:
+            # We have product but no competitors - count as top
+            products_at_top += 1
 
-    pending_recommendations = Recommendation.objects.filter(status='PENDING').count()
-    potential_savings = Recommendation.objects.filter(
-        status='PENDING',
+    recommendation_qs = Recommendation.objects.filter(status='PENDING')
+    if city_slug:
+        recommendation_qs = recommendation_qs.filter(city__slug=city_slug)
+
+    pending_recommendations = recommendation_qs.count()
+    potential_savings = recommendation_qs.filter(
         potential_savings__isnull=False
     ).aggregate(total=Sum('potential_savings'))['total'] or Decimal('0')
 
-    market_coverage = ((total_products - missing_products) / total_products * 100) if total_products > 0 else 0
-    price_competitiveness = (products_at_top / (total_products - missing_products) * 100) if (total_products - missing_products) > 0 else 0
+    total_with_our_price = total_products - missing_products
+    market_coverage = (total_with_our_price / total_products * 100) if total_products > 0 else 0
+    price_competitiveness = (products_at_top / total_with_our_price * 100) if total_with_our_price > 0 else 0
 
     data = {
         'total_products': total_products,
@@ -187,61 +221,82 @@ def dashboard_stats(request):
 
 @api_view(['GET'])
 def analytics_gaps(request):
-    """Get products that we don't have but competitors do"""
-    our_aggregator = Aggregator.objects.filter(is_our_company=True).first()
+    """Get products that we don't have but competitors do - optimized with prefetch"""
+    city_slug = request.GET.get('city')
+
+    # Build city filter for prices
+    price_filter = Q(is_available=True, price__isnull=False)
+    if city_slug:
+        price_filter &= Q(city__slug=city_slug)
+
+    # Prefetch all prices in one query
+    price_prefetch = Prefetch(
+        'price_set',
+        queryset=Price.objects.filter(price_filter).select_related('aggregator'),
+        to_attr='cached_prices'
+    )
+
+    products = Product.objects.select_related('category').prefetch_related(price_prefetch)
 
     gaps = []
-    for product in Product.objects.all().select_related('category'):
-        our_price = Price.objects.filter(
-            product=product,
-            aggregator=our_aggregator
-        )
-        if request.GET.get('city'):
-            our_price = our_price.filter(city__slug=request.GET.get('city'))
-        our_price = our_price.first()
+    for product in products:
+        prices = product.cached_prices
 
-        if not our_price or not our_price.is_available or not our_price.price:
-            competitor_prices = Price.objects.filter(
-                product=product,
-                is_available=True
-            ).exclude(aggregator=our_aggregator).exclude(price__isnull=True)
-            
-            if request.GET.get('city'):
-                competitor_prices = competitor_prices.filter(city__slug=request.GET.get('city'))
+        our_price = None
+        competitor_prices = []
 
-            if competitor_prices.exists():
-                min_price = min(float(p.price) for p in competitor_prices)
-                gaps.append({
-                    'product_id': product.id,
-                    'product_name': product.name,
-                    'category': product.category.name if product.category else None,
-                    'min_competitor_price': min_price,
-                    'suggested_price': round(min_price - 1, 2)
-                })
+        for price in prices:
+            if price.aggregator.is_our_company:
+                our_price = price
+            else:
+                competitor_prices.append(float(price.price))
 
-    return Response(gaps)
+        # If we don't have this product but competitors do
+        if (not our_price or not our_price.price) and competitor_prices:
+            min_price = min(competitor_prices)
+            gaps.append({
+                'product_id': product.id,
+                'product_name': product.name,
+                'category': product.category.name if product.category else None,
+                'min_competitor_price': min_price,
+                'suggested_price': round(min_price - 1, 2)
+            })
+
+    return Response(gaps[:100])  # Limit to 100 results for performance
 
 
 @api_view(['POST'])
 def run_algorithm(request):
-    """Run the pricing optimization algorithm"""
-    our_aggregator = Aggregator.objects.filter(is_our_company=True).first()
+    """Run the pricing optimization algorithm - optimized with prefetch"""
+    city_slug = request.GET.get('city')
 
-    new_recommendations = []
+    # Build city filter for prices
+    price_filter = Q(is_available=True, price__isnull=False)
+    if city_slug:
+        price_filter &= Q(city__slug=city_slug)
+
+    # Prefetch all prices in one query
+    price_prefetch = Prefetch(
+        'price_set',
+        queryset=Price.objects.filter(price_filter).select_related('aggregator'),
+        to_attr='cached_prices'
+    )
+
+    products = Product.objects.prefetch_related(price_prefetch)
 
     matcher = ProductMatcher()
-    count = 0
+    new_recommendations = []
 
-    for product in Product.objects.all():
-        rec = matcher.run(product)
+    for product in products:
+        # Pass cached prices to matcher
+        rec = matcher.run_with_cached_prices(product, product.cached_prices, city_slug)
         if rec:
             new_recommendations.append(RecommendationSerializer(rec).data)
-            count += 1
 
     return Response({
         'status': 'success',
-        'new_recommendations': count,
-        'recommendations': new_recommendations
+        'new_recommendations': len(new_recommendations),
+        'recommendations': new_recommendations[:50]  # Limit response size
     })
 
 
