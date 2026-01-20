@@ -21,6 +21,7 @@ export default function Analytics() {
   const [gaps, setGaps] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { theme } = useTheme();
   const { refreshKey } = useCity();
 
   useEffect(() => {
