@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+
+import { useTheme } from '../contexts/ThemeContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import { useCity } from '../contexts/CityContext';
 import {
   LayoutDashboard,
   Table2,
@@ -9,23 +13,28 @@ import {
   Moon,
   Sun,
   ChevronDown,
-  Globe
+  Globe,
+  MapPin
 } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
-import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Sidebar() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t, languages } = useLanguage();
+  const { cities, currentCity, selectCity, loading: citiesLoading } = useCity();
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [showCityMenu, setShowCityMenu] = useState(false);
   const langMenuRef = useRef(null);
+  const cityMenuRef = useRef(null);
 
   // Close lang menu on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (langMenuRef.current && !langMenuRef.current.contains(e.target)) {
         setShowLangMenu(false);
+      }
+      if (cityMenuRef.current && !cityMenuRef.current.contains(e.target)) {
+        setShowCityMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -66,8 +75,8 @@ export default function Sidebar() {
               key={item.path}
               to={item.path}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl mb-1 ${isActive
-                  ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-white'
+                ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-white'
                 }`}
             >
               <item.icon className={`w-5 h-5 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
@@ -79,6 +88,42 @@ export default function Sidebar() {
 
       {/* Settings Section */}
       <div className="px-4 py-3 space-y-2 shrink-0">
+        {/* City Selector */}
+        {!citiesLoading && cities.length > 0 && (
+          <div className="relative" ref={cityMenuRef}>
+            <button
+              onClick={() => setShowCityMenu(!showCityMenu)}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-600"
+            >
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-emerald-500" />
+                <span className="text-sm font-medium truncate">{currentCity ? currentCity.name : 'Select City'}</span>
+              </div>
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showCityMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showCityMenu && (
+              <div className="absolute bottom-full left-0 right-0 mb-1 bg-white dark:bg-slate-700 rounded-xl shadow-lg border border-gray-200 dark:border-slate-600 overflow-hidden z-50 max-h-48 overflow-y-auto">
+                {cities.map((city) => (
+                  <button
+                    key={city.id}
+                    onClick={() => {
+                      selectCity(city);
+                      setShowCityMenu(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-slate-600 ${currentCity && currentCity.id === city.id
+                      ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                      : 'text-gray-700 dark:text-gray-200'
+                      }`}
+                  >
+                    <span className="text-sm font-medium">{city.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
@@ -121,8 +166,8 @@ export default function Sidebar() {
                     setShowLangMenu(false);
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-slate-600 ${language === lang.code
-                      ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                      : 'text-gray-700 dark:text-gray-200'
+                    ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                    : 'text-gray-700 dark:text-gray-200'
                     }`}
                 >
                   <span className="text-lg">{lang.flag}</span>

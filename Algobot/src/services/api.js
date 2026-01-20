@@ -9,6 +9,14 @@ const api = axios.create({
   },
 });
 
+api.interceptors.request.use((config) => {
+  const citySlug = localStorage.getItem('selectedCity');
+  if (citySlug) {
+    config.params = { ...config.params, city: citySlug };
+  }
+  return config;
+});
+
 export const aggregatorsAPI = {
   getAll: () => api.get('/aggregators/'),
 };

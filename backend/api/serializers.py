@@ -1,5 +1,11 @@
 from rest_framework import serializers
-from .models import Aggregator, Category, Product, Price, Recommendation, PriceHistory, ProductLink, UnitConversion, ImportJob
+from .models import Aggregator, Category, Product, Price, Recommendation, PriceHistory, ProductLink, UnitConversion, ImportJob, City
+
+
+class CitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = City
+        fields = '__all__'
 
 
 class AggregatorSerializer(serializers.ModelSerializer):
@@ -53,9 +59,11 @@ class PriceSerializer(serializers.ModelSerializer):
     aggregator_name = serializers.CharField(source='aggregator.name', read_only=True)
     aggregator_color = serializers.CharField(source='aggregator.color', read_only=True)
 
+    city_name = serializers.CharField(source='city.name', read_only=True)
+
     class Meta:
         model = Price
-        fields = ['id', 'price', 'is_available', 'aggregator_name', 'aggregator_color', 'aggregator_id']
+        fields = ['id', 'price', 'is_available', 'aggregator_name', 'aggregator_color', 'aggregator_id', 'city_id', 'city_name']
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -95,8 +103,21 @@ class ProductComparisonSerializer(serializers.ModelSerializer):
         return None
 
     def get_prices(self, obj):
-        prices = Price.objects.filter(product=obj).select_related('aggregator')
-        links = {link.aggregator_id: link for link in ProductLink.objects.filter(product=obj)}
+        # Use pre-fetched prices if available, otherwise fallback to DB
+        if hasattr(obj, 'filtered_prices'):
+             prices = obj.filtered_prices
+        else:
+            prices = Price.objects.filter(product=obj).select_related('aggregator')
+            request = self.context.get('request')
+            if request and request.query_params.get('city'):
+                prices = prices.filter(city__slug=request.query_params.get('city'))
+
+        # Use prefetched links if available
+        if hasattr(obj, 'links'): # Using the related_name 'links'
+             links = {link.aggregator_id: link for link in obj.links.all()}
+        else:
+             links = {link.aggregator_id: link for link in ProductLink.objects.filter(product=obj)}
+
         result = {}
         for price in prices:
             link = links.get(price.aggregator_id)
@@ -115,7 +136,14 @@ class ProductComparisonSerializer(serializers.ModelSerializer):
         if not obj.weight_value or not obj.weight_unit:
             return None
 
-        prices = Price.objects.filter(product=obj).select_related('aggregator')
+        if hasattr(obj, 'filtered_prices'):
+             prices = obj.filtered_prices
+        else:
+            prices = Price.objects.filter(product=obj).select_related('aggregator')
+            request = self.context.get('request')
+            if request and request.query_params.get('city'):
+                prices = prices.filter(city__slug=request.query_params.get('city'))
+
         result = {}
 
         # Определяем стандартную единицу и множитель
@@ -149,7 +177,14 @@ class ProductComparisonSerializer(serializers.ModelSerializer):
         TOP 1 только если наша цена СТРОГО меньше всех конкурентов.
         Равная цена = нужно снизить на 1₸
         """
-        prices = Price.objects.filter(product=obj).select_related('aggregator')
+        if hasattr(obj, 'filtered_prices'):
+             prices = obj.filtered_prices
+        else:
+            prices = Price.objects.filter(product=obj).select_related('aggregator')
+            request = self.context.get('request')
+            if request and request.query_params.get('city'):
+                prices = prices.filter(city__slug=request.query_params.get('city'))
+
         our_price = None
         competitor_prices = []
 
@@ -179,15 +214,30 @@ class ProductComparisonSerializer(serializers.ModelSerializer):
             return all_prices.index(our_price) + 1
 
     def get_min_competitor_price(self, obj):
-        prices = Price.objects.filter(
-            product=obj,
-            aggregator__is_our_company=False,
-            is_available=True
-        ).exclude(price__isnull=True)
+        if hasattr(obj, 'filtered_prices'):
+             prices = obj.filtered_prices
+             # Filter in Python
+             competitor_prices = [
+                 float(p.price) for p in prices 
+                 if not p.aggregator.is_our_company and p.is_available and p.price
+             ]
+             if competitor_prices:
+                 return min(competitor_prices)
+             return None
+        else:
+            prices = Price.objects.filter(
+                product=obj,
+                aggregator__is_our_company=False,
+                is_available=True
+            ).exclude(price__isnull=True)
+            
+            request = self.context.get('request')
+            if request and request.query_params.get('city'):
+                prices = prices.filter(city__slug=request.query_params.get('city'))
 
-        if prices.exists():
-            return float(min(p.price for p in prices))
-        return None
+            if prices.exists():
+                return float(min(p.price for p in prices))
+            return None
 
     def get_status(self, obj):
         """
@@ -197,7 +247,14 @@ class ProductComparisonSerializer(serializers.ModelSerializer):
         - 'higher' - наша цена выше, нужно снизить
         - 'missing' - у нас нет этого товара
         """
-        prices = Price.objects.filter(product=obj).select_related('aggregator')
+        if hasattr(obj, 'filtered_prices'):
+             prices = obj.filtered_prices
+        else:
+            prices = Price.objects.filter(product=obj).select_related('aggregator')
+            request = self.context.get('request')
+            if request and request.query_params.get('city'):
+                prices = prices.filter(city__slug=request.query_params.get('city'))
+
         our_price = None
         competitor_prices = []
 
@@ -249,6 +306,8 @@ class PriceHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = PriceHistory
         fields = '__all__'
+
+    city = serializers.CharField(source='city.name', read_only=True)
 
 
 class DashboardSerializer(serializers.Serializer):

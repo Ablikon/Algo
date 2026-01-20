@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, action, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
-from django.db.models import Count, Sum, Q
+from django.db.models import Count, Sum, Q, Prefetch
 from django.http import HttpResponse
 from django.utils import timezone
 from decimal import Decimal
@@ -10,9 +10,10 @@ import csv
 import io
 import pandas as pd
 
-from .models import Aggregator, Category, Product, Price, Recommendation, PriceHistory, ProductLink, ImportJob
+from .models import Aggregator, Category, Product, Price, Recommendation, PriceHistory, ProductLink, ImportJob, City
 from .serializers import (
     AggregatorSerializer,
+    CitySerializer,
     CategorySerializer,
     CategoryTreeSerializer,
     ProductSerializer,
@@ -30,6 +31,11 @@ from .services.matching import ProductMatcher
 class AggregatorViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Aggregator.objects.all()
     serializer_class = AggregatorSerializer
+
+
+class CityViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = City.objects.all()
+    serializer_class = CitySerializer
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -50,8 +56,15 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['get'])
     def comparison(self, request):
-        products = Product.objects.all().select_related('category')
-        serializer = ProductComparisonSerializer(products, many=True)
+        price_qs = Price.objects.select_related('aggregator')
+        if request.GET.get('city'):
+            price_qs = price_qs.filter(city__slug=request.GET.get('city'))
+
+        products = Product.objects.all().select_related('category').prefetch_related(
+            Prefetch('price_set', queryset=price_qs, to_attr='filtered_prices'),
+            'links'
+        )
+        serializer = ProductComparisonSerializer(products, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -123,6 +136,8 @@ def dashboard_stats(request):
 
     for product in Product.objects.all():
         prices = Price.objects.filter(product=product).select_related('aggregator')
+        if request.GET.get('city'):
+            prices = prices.filter(city__slug=request.GET.get('city'))
         our_price = None
         competitor_prices = []
         has_our_product = False
@@ -180,13 +195,19 @@ def analytics_gaps(request):
         our_price = Price.objects.filter(
             product=product,
             aggregator=our_aggregator
-        ).first()
+        )
+        if request.GET.get('city'):
+            our_price = our_price.filter(city__slug=request.GET.get('city'))
+        our_price = our_price.first()
 
         if not our_price or not our_price.is_available or not our_price.price:
             competitor_prices = Price.objects.filter(
                 product=product,
                 is_available=True
             ).exclude(aggregator=our_aggregator).exclude(price__isnull=True)
+            
+            if request.GET.get('city'):
+                competitor_prices = competitor_prices.filter(city__slug=request.GET.get('city'))
 
             if competitor_prices.exists():
                 min_price = min(float(p.price) for p in competitor_prices)

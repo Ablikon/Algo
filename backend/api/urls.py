@@ -4,6 +4,7 @@ from . import views
 
 router = DefaultRouter()
 router.register(r'aggregators', views.AggregatorViewSet)
+router.register(r'cities', views.CityViewSet)
 router.register(r'categories', views.CategoryViewSet)
 router.register(r'products', views.ProductViewSet)
 router.register(r'recommendations', views.RecommendationViewSet)

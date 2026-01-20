@@ -1,6 +1,18 @@
 from django.db import models
 
 
+class City(models.Model):
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=100, unique=True)
+
+    class Meta:
+        db_table = 'cities'
+        verbose_name_plural = 'cities'
+
+    def __str__(self):
+        return self.name
+
+
 class Aggregator(models.Model):
     name = models.CharField(max_length=100)
     logo_url = models.CharField(max_length=500, null=True, blank=True)
@@ -10,7 +22,7 @@ class Aggregator(models.Model):
 
     class Meta:
         db_table = 'aggregators'
-        managed = False
+
 
     def __str__(self):
         return self.name
@@ -24,7 +36,7 @@ class Category(models.Model):
 
     class Meta:
         db_table = 'categories'
-        managed = False
+
 
     def __str__(self):
         return self.name
@@ -58,7 +70,7 @@ class Product(models.Model):
 
     class Meta:
         db_table = 'products'
-        managed = False
+
 
     def __str__(self):
         return self.name
@@ -91,11 +103,12 @@ class Price(models.Model):
     is_available = models.BooleanField(default=True)
     competitor_brand = models.CharField(max_length=100, null=True, blank=True)
     competitor_country = models.CharField(max_length=100, null=True, blank=True)
+    city = models.ForeignKey(City, on_delete=models.CASCADE, null=True, blank=True)
     last_updated = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'prices'
-        unique_together = ('product', 'aggregator')
+        unique_together = ('product', 'aggregator', 'city')
 
 
 class Recommendation(models.Model):
@@ -123,11 +136,11 @@ class Recommendation(models.Model):
     potential_savings = models.DecimalField(max_digits=10, decimal_places=2, null=True)
     priority = models.CharField(max_length=20, choices=PRIORITIES)
     status = models.CharField(max_length=20, choices=STATUSES, default='PENDING')
+    city = models.ForeignKey(City, on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'recommendations'
-        managed = False
 
 
 class PriceHistory(models.Model):
@@ -139,7 +152,7 @@ class PriceHistory(models.Model):
 
     class Meta:
         db_table = 'price_history'
-        managed = False
+
 
 
 class ProductLink(models.Model):
@@ -152,7 +165,6 @@ class ProductLink(models.Model):
 
     class Meta:
         db_table = 'product_links'
-        managed = False
         unique_together = ('product', 'aggregator')
 
     def __str__(self):
@@ -166,7 +178,6 @@ class UnitConversion(models.Model):
 
     class Meta:
         db_table = 'unit_conversions'
-        managed = False
         unique_together = ('from_unit', 'to_unit')
 
 
@@ -197,7 +208,7 @@ class ImportJob(models.Model):
 
     class Meta:
         db_table = 'import_jobs'
-        managed = False
+
 
     def __str__(self):
         return f"{self.job_type} - {self.status}"
