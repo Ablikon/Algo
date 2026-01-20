@@ -62,12 +62,12 @@ function CategoryNode({ category, selectedCategories, onToggle, level = 0, searc
           </span>
         </div>
 
-        {category.product_count > 0 && (
+        {/* {category.product_count > 0 && (
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isSelected ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
             }`}>
             {category.product_count}
           </span>
-        )}
+        )} */}
       </div>
 
       <AnimatePresence>

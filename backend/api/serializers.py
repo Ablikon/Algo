@@ -16,10 +16,11 @@ class AggregatorSerializer(serializers.ModelSerializer):
 
 class CategorySerializer(serializers.ModelSerializer):
     parent_id = serializers.IntegerField(source='parent.id', read_only=True, allow_null=True)
+    product_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'icon', 'parent_id', 'sort_order']
+        fields = ['id', 'name', 'icon', 'parent_id', 'sort_order', 'product_count']
 
 
 class CategoryTreeSerializer(serializers.ModelSerializer):

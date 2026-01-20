@@ -48,7 +48,7 @@ class CityViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
-    queryset = Category.objects.all()
+    queryset = Category.objects.annotate(product_count=Count('product')).order_by('sort_order', 'name')
     serializer_class = CategorySerializer
 
     @action(detail=False, methods=['get'])

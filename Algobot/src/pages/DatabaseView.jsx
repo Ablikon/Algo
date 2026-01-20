@@ -110,6 +110,7 @@ export default function DatabaseView() {
                 <th className="py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300">ID</th>
                 <th className="py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300">{t('name')}</th>
                 <th className="py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300">{t('icon')}</th>
+                <th className="py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300">Количество товаров</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
@@ -124,6 +125,7 @@ export default function DatabaseView() {
                   <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">{item.id}</td>
                   <td className="py-3 px-4 font-medium text-gray-900 dark:text-gray-200">{item.name}</td>
                   <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{item.icon || '—'}</td>
+                  <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{item.product_count || 0}</td>
                 </motion.tr>
               ))}
             </tbody>
