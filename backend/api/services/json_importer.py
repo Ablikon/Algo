@@ -116,20 +116,44 @@ class JSONDataImporter:
         return text.lower().strip()
     
     def extract_weight(self, product_data):
-        """Extract weight/volume from product data"""
-        # Try different field names
-        for field in ['measure', 'weight', 'volume', 'unitInfo', 'unit_info']:
+        """Extract weight/volume from product data, handling multipliers (e.g. 2 x 0.5L)"""
+        # 1. Detect Multiplier from Title
+        title = product_data.get('title') or product_data.get('name') or product_data.get('product_name') or ""
+        multiplier = 1
+        
+        # Regex for "2 x", "2x", "2х" (cyrillic), "2шт x"
+        mul_match = re.search(r'(^|\s)(\d+)\s*[xхXХ]\s+', title)
+        if mul_match:
+            try:
+                multiplier = float(mul_match.group(2))
+            except:
+                pass
+
+        # 2. Extract Base Weight
+        # Try title/name first as they are most reliable for user-visible weight
+        # Then fallback to dedicated fields which might contain scraped errors (e.g. 5L instead of 0.5L)
+        search_fields = ['title', 'name', 'product_name', 'measure', 'weight', 'volume', 'unitInfo', 'unit_info']
+        
+        value = None
+        unit = None
+        
+        for field in search_fields:
             val = product_data.get(field)
             if val:
                 # Parse weight string like "500г", "1л", "1 шт"
-                match = re.search(r'(\d+[.,]?\d*)\s*(г|кг|л|мл|g|kg|l|ml|шт|pcs)', str(val).lower())
+                # Added space definition to avoid catching "2024" as weight if unit is missing (unlikely due to regex)
+                match = re.search(r'(\d+[.,]?\d*)\s*(г|кг|л|мл|g|kg|l|ml|шт|pcs)\b', str(val).lower())
                 if match:
                     value = float(match.group(1).replace(',', '.'))
                     unit = match.group(2)
                     # Normalize units
                     unit_map = {'г': 'g', 'кг': 'kg', 'л': 'l', 'мл': 'ml', 'шт': 'pcs'}
                     unit = unit_map.get(unit, unit)
-                    return value, unit
+                    break
+        
+        if value:
+            return value * multiplier, unit
+            
         return None, None
     
     def detect_category(self, product_data):
@@ -476,11 +500,17 @@ class JSONDataImporter:
                         
                         # Create product link
                         if parsed['external_url'] or parsed['external_id']:
+                            url = parsed['external_url']
+                            if not url and 'glovo' in agg_slug.lower() and parsed['title']:
+                                # Fallback: Generate search URL for Glovo
+                                from urllib.parse import quote
+                                url = f"https://glovoapp.com/kz/ru/almaty/search/?query={quote(parsed['title'])}"
+                                
                             ProductLink.objects.update_or_create(
                                 product=product,
                                 aggregator=aggregator,
                                 defaults={
-                                    'url': parsed['external_url'],
+                                    'url': url,
                                     'external_name': parsed['title'],
                                     'is_verified': True
                                 }
