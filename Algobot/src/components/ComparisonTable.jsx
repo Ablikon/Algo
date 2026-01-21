@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, AlertTriangle, Minus, ExternalLink, Scale } from 'lucide-react';
+import { CheckCircle, AlertCircle, Minus, ExternalLink, Scale, ArrowUp, ArrowDown } from 'lucide-react';
 
 const aggregatorColors = {
   glovo: '#00A082',
@@ -11,66 +11,96 @@ const aggregatorColors = {
 };
 
 export default function ComparisonTable({ products, compact = false, showNormalized = false, onToggleNormalized, aggregators: propAggregators }) {
-  // Use aggregators from props or fallback to global window or the set in products
   const availableAggregators = propAggregators || window.allAggregators || [];
 
   const allAggregatorNames = availableAggregators.length > 0
     ? availableAggregators.map(a => a.name.toLowerCase())
     : Array.from(new Set(products.flatMap(p => Object.keys(p.prices || {})))).filter(name => name !== 'our_company');
 
-  const getPositionBadge = (position) => {
+  const getPositionBadge = (position, priceDiff) => {
     if (position === null) {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 rounded-full text-[10px]">
-          <Minus className="w-3 h-3" />
-          Нет
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-gray-50 text-gray-400 rounded text-[10px] font-medium border border-gray-100">
+          —
         </span>
       );
     }
+
     if (position === 1) {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 rounded-full text-[10px] font-bold">
-          <CheckCircle className="w-3 h-3" />
-          ТОП 1
-        </span>
+        <div className="flex flex-col items-center gap-1">
+          <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 text-white rounded-md text-[11px] font-bold shadow-sm">
+            <CheckCircle className="w-3 h-3" />
+            Лидер
+          </div>
+          {priceDiff !== null && priceDiff < 0 && (
+            <div className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+              {Math.abs(priceDiff)}% <ArrowDown className="w-2.5 h-2.5" />
+            </div>
+          )}
+        </div>
       );
     }
+
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full text-[10px] font-bold">
-        <AlertTriangle className="w-3 h-3" />
-        №{position}
-      </span>
+      <div className="flex flex-col items-center gap-1">
+        <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500 text-white rounded-md text-[11px] font-bold shadow-sm">
+          <AlertCircle className="w-3 h-3" />
+          #{position}
+        </div>
+        {priceDiff !== null && priceDiff > 0 && (
+          <div className="text-[10px] font-bold text-rose-600 flex items-center gap-0.5 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
+            +{priceDiff}% <ArrowUp className="w-2.5 h-2.5" />
+          </div>
+        )}
+      </div>
     );
   };
 
   const formatPrice = (price) => {
     if (price === null || price === undefined) return '—';
-    return `${Math.round(price).toLocaleString()}₸`;
+    return `${Math.round(price).toLocaleString()} ₸`;
   };
 
-  const getPriceCell = (priceData, aggregator, minPrice, normalizedData, showNormalized) => {
+  const getPriceCell = (priceData, aggregator, minPrice, maxPrice, normalizedData, showNormalized, isOurCompany) => {
     if (!priceData || !priceData.is_available || priceData.price === null) {
       return (
-        <div className="flex items-center justify-center gap-1 text-gray-300">
-          <span className="text-[11px]">Нет</span>
+        <div className="px-2 py-3 text-center">
+          <span className="text-gray-300 text-xl font-light">·</span>
         </div>
       );
     }
 
     const price = priceData.price;
     const isMin = price === minPrice;
-    const isGlovo = aggregator.includes('glovo');
     const hasUrl = priceData.url;
     const normalizedPrice = normalizedData?.[aggregator]?.price_per_unit;
     const normalizedUnit = normalizedData?.[aggregator]?.unit;
 
+    // Badge style logic
+    let containerClass = "flex flex-col items-center justify-center py-2 px-2 rounded-xl border transition-all duration-200";
+    let priceClass = "text-sm font-bold";
+
+    if (isMin) {
+      containerClass += " bg-emerald-50 border-emerald-200 shadow-sm";
+      priceClass += " text-emerald-700";
+    } else if (isOurCompany) {
+      containerClass += " bg-blue-50 border-blue-200 shadow-sm";
+      priceClass += " text-blue-700";
+    } else {
+      containerClass += " bg-white border-gray-100 hover:border-gray-200 hover:shadow-md hover:-translate-y-0.5";
+      priceClass += " text-gray-700";
+    }
+
     return (
-      <div className="flex flex-col items-center gap-1">
-        <div className="flex items-center gap-1">
-          <span className={`text-xs font-bold ${isMin ? 'text-emerald-600 dark:text-emerald-400' : isGlovo ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>
+      <div className={containerClass}>
+        <div className="flex items-center gap-1.5">
+          <span className={priceClass}>
             {formatPrice(price)}
           </span>
-          {isMin && <span className="text-[8px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-1 py-0.5 rounded font-black">МИН</span>}
+          {isMin && (
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Минимальная цена" />
+          )}
         </div>
 
         {hasUrl && (
@@ -79,15 +109,14 @@ export default function ComparisonTable({ products, compact = false, showNormali
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-1 text-[9px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded transition-colors"
+            className="group flex items-center gap-1 mt-1 text-[10px] font-medium text-gray-400 hover:text-blue-500 transition-colors"
           >
-            <ExternalLink className="w-2.5 h-2.5" />
-            URL
+            Go <ExternalLink className="w-2.5 h-2.5 group-hover:scale-110 transition-transform" />
           </a>
         )}
 
         {showNormalized && normalizedPrice && (
-          <span className="text-[10px] text-gray-400">
+          <span className="text-[10px] text-gray-400 mt-0.5 border-t border-gray-100 pt-0.5 w-full text-center">
             {formatPrice(normalizedPrice)}/{normalizedUnit}
           </span>
         )}
@@ -97,7 +126,6 @@ export default function ComparisonTable({ products, compact = false, showNormali
 
   const displayProducts = compact ? products.slice(0, 5) : products;
 
-  // Pre-defined order for stability
   const sortedAggregators = [
     'glovo',
     'magnum',
@@ -107,7 +135,6 @@ export default function ComparisonTable({ products, compact = false, showNormali
     'arbuz'
   ].filter(name => allAggregatorNames.includes(name) || availableAggregators.length === 0);
 
-  // Add any unexpected aggregators
   allAggregatorNames.forEach(name => {
     if (!sortedAggregators.includes(name)) {
       sortedAggregators.push(name);
@@ -115,76 +142,87 @@ export default function ComparisonTable({ products, compact = false, showNormali
   });
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
-      {/* Normalization Toggle */}
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      {/* Toolbar */}
       {!compact && onToggleNormalized && (
-        <div className="px-6 py-3 border-b border-gray-100 dark:border-slate-700 flex items-center justify-end">
+        <div className="px-6 py-3 bg-white border-b border-gray-100 flex justify-end">
           <button
             onClick={onToggleNormalized}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${showNormalized
-              ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
-              : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${showNormalized
+                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
               }`}
           >
             <Scale className="w-4 h-4" />
-            {showNormalized ? 'Показать за шт' : 'Цена за кг/л'}
+            {showNormalized ? 'Цена за шт' : 'Цена за ед.'}
           </button>
         </div>
       )}
 
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full text-left">
           <thead>
-            <tr className="bg-gray-50 dark:bg-slate-700/50 border-b border-gray-100 dark:border-slate-700">
-              <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600 dark:text-gray-300 min-w-[200px]">Товар</th>
+            <tr className="bg-gray-50/50 border-b border-gray-200">
+              <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[250px]">
+                Товар
+              </th>
 
-              {sortedAggregators.map(agg => (
-                <th key={agg} className="text-center py-4 px-2 min-w-[100px]">
+              {sortedAggregators.map((agg, idx) => (
+                <th key={agg} className="py-4 px-2 text-center text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[120px]">
                   <div className="flex flex-col items-center gap-1">
-                    <div className="w-6 h-6 rounded-lg flex items-center justify-center shadow-sm" style={{ backgroundColor: aggregatorColors[agg] || '#94a3b8' }}>
-                      <span className="text-[10px] text-white font-black uppercase">{agg.charAt(0)}</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-tighter">{agg}</span>
+                    <span>{agg === 'glovo' ? 'Наши Цены' : agg}</span>
+                    <div className="h-0.5 w-6 rounded-full" style={{ backgroundColor: aggregatorColors[agg] || '#cbd5e1' }} />
                   </div>
                 </th>
               ))}
 
-              <th className="text-center py-4 px-6 text-sm font-semibold text-gray-600 dark:text-gray-300">Позиция</th>
+              <th className="py-4 px-6 text-center text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[140px]">
+                Статус
+              </th>
             </tr>
           </thead>
-          <tbody>
-            {displayProducts.map((product, index) => {
+          <tbody className="divide-y divide-gray-100">
+            {displayProducts.map((product) => {
               const prices = product.prices || {};
               const priceValues = sortedAggregators.map(agg => prices[agg]?.price).filter(p => p !== null && p !== undefined);
               const minPrice = priceValues.length > 0 ? Math.min(...priceValues) : null;
+              const maxPrice = priceValues.length > 0 ? Math.max(...priceValues) : null;
+
+              const ourPrice = prices['glovo']?.price;
+              const competitorPrices = sortedAggregators.slice(1).map(agg => prices[agg]?.price).filter(p => p !== null && p !== undefined);
+              const minCompetitor = competitorPrices.length > 0 ? Math.min(...competitorPrices) : null;
+
+              let priceDiff = null;
+              if (ourPrice && minCompetitor) {
+                priceDiff = Math.round(((ourPrice - minCompetitor) / minCompetitor) * 100);
+              }
 
               return (
-                <tr
-                  key={product.id}
-                  className="border-b border-gray-50 dark:border-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors"
-                >
-                  <td className="py-4 px-6">
-                    <div className="min-w-0">
-                      <p className="font-bold text-gray-900 dark:text-white line-clamp-1 text-sm" title={product.name}>{product.name}</p>
-                      <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <span className="text-[10px] text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{product.category_name}</span>
-                        {product.brand && (
-                          <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 truncate max-w-[100px]">
-                            {product.brand}
-                          </span>
-                        )}
-                      </div>
+                <tr key={product.id} className="hover:bg-gray-50/50 transition-colors group">
+                  <td className="py-4 px-6 align-middle">
+                    <div className="font-bold text-gray-900 text-sm line-clamp-2 leading-relaxed" title={product.name}>
+                      {product.name}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-medium border border-gray-200">
+                        {product.category_name}
+                      </span>
+                      {product.brand && (
+                        <span className="text-[10px] font-bold text-blue-600">
+                          {product.brand}
+                        </span>
+                      )}
                     </div>
                   </td>
 
-                  {sortedAggregators.map(agg => (
-                    <td key={agg} className="py-4 px-2 text-center">
-                      {getPriceCell(prices[agg], agg, minPrice, product.normalized_prices, showNormalized)}
+                  {sortedAggregators.map((agg, idx) => (
+                    <td key={agg} className="py-3 px-2 align-middle">
+                      {getPriceCell(prices[agg], agg, minPrice, maxPrice, product.normalized_prices, showNormalized, idx === 0)}
                     </td>
                   ))}
 
-                  <td className="py-4 px-6 text-center">
-                    {getPositionBadge(product.our_position)}
+                  <td className="py-4 px-6 text-center align-middle">
+                    {getPositionBadge(product.our_position, priceDiff)}
                   </td>
                 </tr>
               );
@@ -194,11 +232,10 @@ export default function ComparisonTable({ products, compact = false, showNormali
       </div>
 
       {displayProducts.length === 0 && (
-        <div className="text-center py-12 text-gray-400">
-          Нет товаров для отображения
+        <div className="text-center py-16 text-gray-500">
+          Нет данных для отображения
         </div>
       )}
     </div>
   );
 }
-

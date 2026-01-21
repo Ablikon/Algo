@@ -26,48 +26,36 @@ function CategoryNode({ category, selectedCategories, onToggle, level = 0, searc
   return (
     <div className="select-none">
       <div
-        className={`group flex items-center gap-3 py-2 px-3 my-0.5 mx-1 rounded-xl cursor-pointer transition-all ${isSelected
-          ? 'bg-emerald-50 border border-emerald-100'
-          : 'hover:bg-gray-50 border border-transparent'
+        className={`group flex items-center gap-2 py-1.5 px-2 my-0.5 rounded-lg cursor-pointer transition-all ${isSelected
+          ? 'bg-emerald-50 text-emerald-900 border border-emerald-100'
+          : 'hover:bg-gray-50 text-gray-700 border border-transparent'
           }`}
-        style={{ marginLeft: `${level * 12}px` }}
+        style={{ marginLeft: `${level * 16}px` }}
         onClick={handleExpandClick}
       >
-        <div className={`p-1 rounded-lg transition-colors ${hasChildren ? 'hover:bg-black/5 text-gray-400' : 'opacity-0'
+        <div className={`shrink-0 w-4 h-4 transition-colors flex items-center justify-center ${hasChildren ? 'text-gray-400' : 'opacity-0'
           }`}>
           {hasChildren && (
-            isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
+            isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />
           )}
         </div>
 
         <div
           onClick={handleCheckboxClick}
-          className={`shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all shadow-sm ${isSelected
-            ? 'bg-emerald-500 border-emerald-500 shadow-emerald-200'
-            : 'bg-white border-gray-300 group-hover:border-emerald-400'
+          className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-all ${isSelected
+            ? 'bg-emerald-600 border-emerald-600'
+            : 'bg-white border-gray-300'
             }`}
         >
-          {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3px]" />}
+          {isSelected && <Check className="w-3 h-3 text-white stroke-[3px]" />}
         </div>
 
         <div className="flex-1 flex items-center gap-2 min-w-0">
-          {hasChildren ? (
-            isExpanded ? <FolderOpen className="w-4 h-4 text-amber-500" /> : <Folder className="w-4 h-4 text-amber-500" />
-          ) : (
-            <Layers className={`w-4 h-4 ${isSelected ? 'text-emerald-600' : 'text-gray-400'}`} />
-          )}
-          <span className={`text-sm font-bold truncate ${isSelected ? 'text-emerald-900 line-clamp-1' : 'text-gray-700'
+          <span className={`text-xs font-medium truncate ${isSelected ? 'font-bold' : ''
             }`} title={category.name}>
             {category.name}
           </span>
         </div>
-
-        {/* {category.product_count > 0 && (
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isSelected ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
-            }`}>
-            {category.product_count}
-          </span>
-        )} */}
       </div>
 
       <AnimatePresence>

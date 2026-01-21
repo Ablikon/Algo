@@ -73,6 +73,10 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             price_qs = price_qs.filter(city__slug=city_slug)
 
         products = Product.objects.all().select_related('category')
+        
+        search_query = request.GET.get('search')
+        if search_query:
+            products = products.filter(name__icontains=search_query)
 
         if category_ids:
             try:
