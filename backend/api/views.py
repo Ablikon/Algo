@@ -645,27 +645,88 @@ def upload_custom_json(request):
 
 @api_view(['GET'])
 def export_products(request):
-    """Export products to Excel"""
+    """Export products to Excel with proper formatting"""
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+
     products = Product.objects.all().select_related('category').prefetch_related('price_set__aggregator')
+    aggregators = list(Aggregator.objects.all().order_by('is_our_company', 'name'))
 
     data = []
     for product in products:
+        # Get prices dict
+        prices_dict = {p.aggregator_id: p.price for p in product.price_set.all()}
+
         row = {
-            'name': product.name,
-            'category': product.category.name if product.category else '',
-            'brand': product.brand or '',
-            'weight_value': product.weight_value,
-            'weight_unit': product.weight_unit or '',
+            'Название': product.name,
+            'Категория': product.category.name if product.category else '',
+            'Бренд': product.brand or '',
+            'Вес/Объём': f"{product.weight_value} {product.weight_unit}" if product.weight_value else '',
         }
-        for price in product.price_set.all():
-            row[f'price_{price.aggregator.name}'] = float(price.price) if price.price else None
+
+        # Add price columns for each aggregator
+        for agg in aggregators:
+            price = prices_dict.get(agg.id)
+            col_name = f"{'Наша цена' if agg.is_our_company else agg.name} (₸)"
+            row[col_name] = int(price) if price else None
+
         data.append(row)
 
     df = pd.DataFrame(data)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Products')
+        df.to_excel(writer, index=False, sheet_name='Товары')
+
+        # Get worksheet for formatting
+        ws = writer.sheets['Товары']
+
+        # Header style
+        header_font = Font(bold=True, color='FFFFFF')
+        header_fill = PatternFill(start_color='2E7D32', end_color='2E7D32', fill_type='solid')
+        header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+        thin_border = Border(
+            left=Side(style='thin', color='CCCCCC'),
+            right=Side(style='thin', color='CCCCCC'),
+            top=Side(style='thin', color='CCCCCC'),
+            bottom=Side(style='thin', color='CCCCCC')
+        )
+
+        # Apply header formatting
+        for col_num, col_name in enumerate(df.columns, 1):
+            cell = ws.cell(row=1, column=col_num)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+            cell.border = thin_border
+
+        # Apply data formatting and auto-width
+        for col_num, col_name in enumerate(df.columns, 1):
+            col_letter = get_column_letter(col_num)
+
+            # Calculate width based on content
+            max_length = len(str(col_name))
+            for row_num in range(2, len(df) + 2):
+                cell = ws.cell(row=row_num, column=col_num)
+                cell.border = thin_border
+                cell.alignment = Alignment(vertical='center')
+
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+
+                # Format price columns (right align)
+                if '₸' in col_name:
+                    cell.alignment = Alignment(horizontal='right', vertical='center')
+
+            # Set column width (with limits)
+            ws.column_dimensions[col_letter].width = min(max(max_length + 2, 10), 50)
+
+        # Freeze header row
+        ws.freeze_panes = 'A2'
+
+        # Add auto-filter
+        ws.auto_filter.ref = ws.dimensions
 
     output.seek(0)
 
