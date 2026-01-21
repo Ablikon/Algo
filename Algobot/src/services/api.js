@@ -74,6 +74,18 @@ export const importAPI = {
   getJobs: () => api.get('/import-jobs/'),
   getJobStatus: (id) => api.get(`/import-jobs/${id}/`),
   downloadTemplate: (type) => `${API_BASE_URL}/import/template/${type}/`,
+  // JSON import from Data folder
+  getJsonInfo: () => api.get('/import/json/info/'),
+  importFromJson: (data) => api.post('/import/json/', data),
+};
+
+export const exportAPI = {
+  downloadProducts: (params = {}) => `${API_BASE_URL}/export/products/?${new URLSearchParams(params)}`,
+};
+
+export const categoriesResetAPI = {
+  reset: () => api.post('/reset-categories/'),
 };
 
 export default api;
+

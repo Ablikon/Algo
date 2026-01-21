@@ -552,3 +552,157 @@ def import_categories(request):
         'errors': job.error_count,
         'error_details': job.error_details
     })
+
+
+@api_view(['GET'])
+def json_import_info(request):
+    """Get info about available JSON files for import"""
+    from .services.json_importer import JSONDataImporter, CATEGORY_PATTERNS
+    
+    importer = JSONDataImporter()
+    files = importer.list_available_files()
+    
+    categories = []
+    for slug, info in CATEGORY_PATTERNS.items():
+        categories.append({
+            'slug': slug,
+            'name': info['name'],
+            'subcategories': list(info['subcategories'].keys())
+        })
+    
+    return Response({
+        'files': files,
+        'categories': categories,
+    })
+
+
+@api_view(['POST'])
+def import_from_json(request):
+    """Import products from JSON files in Data folder"""
+    from .services.json_importer import JSONDataImporter
+    
+    data = request.data
+    categories = data.get('categories', None)
+    aggregators = data.get('aggregators', None)
+    limit = data.get('limit', None)
+    dry_run = data.get('dry_run', False)
+    
+    if limit:
+        try:
+            limit = int(limit)
+        except:
+            limit = None
+    
+    job = ImportJob.objects.create(
+        job_type='products',
+        file_name='JSON Data Import',
+        status='processing'
+    )
+    
+    importer = JSONDataImporter(job)
+    result = importer.import_from_json(
+        categories=categories,
+        aggregators=aggregators,
+        limit_per_category=limit,
+        dry_run=dry_run,
+    )
+    
+    return Response({
+        'job_id': job.id,
+        'status': result['status'],
+        'total_imported': result['total_imported'],
+        'categories': result['categories'],
+        'aggregators': result['aggregators'],
+        'stats': result.get('stats', {}),
+        'errors': result['errors'][:10] if result['errors'] else [],
+    })
+
+
+@api_view(['GET'])
+def export_products(request):
+    """Export products to CSV"""
+    city_slug = request.GET.get('city')
+    category_ids = request.GET.getlist('category_ids[]')
+    
+    products = Product.objects.all().select_related('category')
+    
+    if category_ids:
+        try:
+            all_ids = set(map(int, category_ids))
+            current_batch = list(all_ids)
+            while current_batch:
+                children_ids = list(Category.objects.filter(parent_id__in=current_batch).values_list('id', flat=True))
+                new_ids = [cid for cid in children_ids if cid not in all_ids]
+                all_ids.update(new_ids)
+                current_batch = new_ids
+            products = products.filter(category_id__in=all_ids)
+        except:
+            pass
+    
+    aggregators = Aggregator.objects.all()
+    
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = 'attachment; filename="products_export.csv"'
+    response.write('\ufeff')
+    
+    writer = csv.writer(response)
+    
+    header = ['ID', 'Название', 'Категория', 'Бренд', 'Страна', 'Вес', 'Ед.изм']
+    for agg in aggregators:
+        header.append(f'Цена {agg.name}')
+    writer.writerow(header)
+    
+    price_filter = Q(is_available=True)
+    if city_slug:
+        price_filter &= Q(city__slug=city_slug)
+    
+    products = products.prefetch_related(
+        Prefetch('price_set', queryset=Price.objects.filter(price_filter).select_related('aggregator'))
+    )
+    
+    for product in products[:5000]:
+        row = [
+            product.id,
+            product.name,
+            product.category.name if product.category else '',
+            product.brand or '',
+            product.country_of_origin or '',
+            str(product.weight_value) if product.weight_value else '',
+            product.weight_unit or '',
+        ]
+        
+        price_map = {}
+        if hasattr(product, 'price_set'):
+            for price in product.price_set.all():
+                price_map[price.aggregator_id] = price.price
+        
+        for agg in aggregators:
+            row.append(str(price_map.get(agg.id, '')) if price_map.get(agg.id) else '')
+        
+        writer.writerow(row)
+    
+    return response
+
+
+@api_view(['POST'])
+def reset_categories(request):
+    """Reset and create fresh category structure"""
+    from .services.json_importer import JSONDataImporter
+    
+    # First, nullify all product category references to avoid foreign key constraint
+    Product.objects.all().update(category=None)
+    
+    # Now safely delete all categories
+    Category.objects.all().delete()
+    
+    # Create fresh category structure
+    importer = JSONDataImporter()
+    categories = importer.ensure_categories()
+    
+    return Response({
+        'status': 'success',
+        'categories_created': len(categories),
+        'categories': list(categories.keys())
+    })
+
+

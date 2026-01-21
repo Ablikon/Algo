@@ -23,4 +23,12 @@ urlpatterns = [
     path('import/prices/', views.import_prices, name='import-prices'),
     path('import/links/', views.import_links, name='import-links'),
     path('import/categories/', views.import_categories, name='import-categories'),
+    # JSON import from Data folder
+    path('import/json/info/', views.json_import_info, name='json-import-info'),
+    path('import/json/', views.import_from_json, name='import-from-json'),
+    # Export
+    path('export/products/', views.export_products, name='export-products'),
+    # Categories
+    path('reset-categories/', views.reset_categories, name='reset-categories'),
 ]
+
