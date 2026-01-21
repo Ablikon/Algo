@@ -17,7 +17,6 @@ export default function Comparison() {
   const [filterPosition, setFilterPosition] = useState('all');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showNormalized, setShowNormalized] = useState(false);
-  const [showOnlyWithCompetitors, setShowOnlyWithCompetitors] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const dropdownRef = useRef(null);
 
@@ -83,6 +82,19 @@ export default function Comparison() {
     return ids;
   };
 
+  // Export handler - opens CSV export with current filters
+  const handleExport = () => {
+    const params = new URLSearchParams();
+    const citySlug = localStorage.getItem('selectedCity');
+    if (citySlug) {
+      params.append('city', citySlug);
+    }
+    if (selectedCategories.length > 0) {
+      selectedCategories.forEach(id => params.append('category_ids[]', id));
+    }
+    window.open(`http://localhost:8000/api/export/products/?${params.toString()}`, '_blank');
+  };
+
   // Stage 1: Filter by search and categories
   const baseFilteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -91,16 +103,9 @@ export default function Comparison() {
 
       if (!matchesSearch || !matchesCategory) return false;
 
-      if (showOnlyWithCompetitors) {
-        // Check if there's at least one competitor price
-        const prices = product.prices || {};
-        const competitorPrices = Object.keys(prices).filter(agg => agg !== 'our_company' && prices[agg]?.price);
-        return competitorPrices.length > 0;
-      }
-
       return true;
     });
-  }, [products, searchTerm, selectedCategories, showOnlyWithCompetitors]);
+  }, [products, searchTerm, selectedCategories]);
 
   // Calculate stats based on base filtered products (ignores current position filter)
   const stats = useMemo(() => {
@@ -141,16 +146,9 @@ export default function Comparison() {
         </div>
         <div className="flex gap-3">
           <button
-            onClick={() => setShowOnlyWithCompetitors(!showOnlyWithCompetitors)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${showOnlyWithCompetitors
-              ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
-              : 'bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200'
-              }`}
+            onClick={handleExport}
+            className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-xl font-medium transition-colors"
           >
-            <Filter className={`w-4 h-4 ${showOnlyWithCompetitors ? 'animate-pulse' : ''}`} />
-            {showOnlyWithCompetitors ? 'Все товары' : 'Только с конкурентами'}
-          </button>
-          <button className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-xl font-medium transition-colors">
             <Download className="w-4 h-4" />
             Экспорт
           </button>

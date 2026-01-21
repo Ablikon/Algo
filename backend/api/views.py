@@ -634,6 +634,166 @@ def import_from_json(request):
     })
 
 
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def upload_custom_json(request):
+    """Upload and import from custom JSON files"""
+    from .services.json_importer import JSONDataImporter
+    import json
+    import tempfile
+    import os
+    
+    files = request.FILES.getlist('files')
+    if not files:
+        return Response({'error': 'No files provided'}, status=400)
+    
+    # Parse form data
+    categories = request.data.get('categories', '[]')
+    if isinstance(categories, str):
+        try:
+            categories = json.loads(categories)
+        except:
+            categories = []
+    
+    limit = request.data.get('limit', 100)
+    try:
+        limit = int(limit)
+    except:
+        limit = 100
+    
+    dry_run = request.data.get('dry_run', 'false')
+    dry_run = dry_run == 'true' or dry_run == True
+    
+    # Create import job
+    job = ImportJob.objects.create(
+        job_type='products',
+        file_name=f'Custom JSON Import ({len(files)} files)',
+        status='processing'
+    )
+    
+    importer = JSONDataImporter(job)
+    
+    # Save uploaded files to temp directory and process
+    temp_dir = tempfile.mkdtemp()
+    aggregator_results = {}
+    total_imported = 0
+    all_errors = []
+    
+    try:
+        for uploaded_file in files:
+            # Save to temp file
+            file_path = os.path.join(temp_dir, uploaded_file.name)
+            with open(file_path, 'wb') as f:
+                for chunk in uploaded_file.chunks():
+                    f.write(chunk)
+            
+            # Determine aggregator name from filename
+            agg_name = uploaded_file.name.replace('.json', '').replace('_products', '').replace('.', '_')
+            
+            # Process the file
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                if not isinstance(data, list):
+                    all_errors.append(f'{uploaded_file.name}: Invalid format - expected array')
+                    continue
+                
+                file_count = 0
+                for item in data:
+                    if limit and file_count >= limit:
+                        break
+                    
+                    # Parse product
+                    parsed = importer.parse_product(item, agg_name)
+                    if not parsed:
+                        continue
+                    
+                    # Check category if specified
+                    if categories:
+                        category_info = importer.detect_category(item)
+                        if not category_info or category_info.get('slug') not in categories:
+                            # Also check if custom category matches
+                            title_lower = parsed.get('title', '').lower()
+                            matched = False
+                            for custom_cat in categories:
+                                if custom_cat.lower() in title_lower:
+                                    matched = True
+                                    category_info = {'name': custom_cat, 'slug': custom_cat.lower(), 'subcategory': None}
+                                    break
+                            if not matched:
+                                continue
+                    else:
+                        category_info = importer.detect_category(item)
+                    
+                    if not dry_run and category_info:
+                        # Create/update product
+                        importer.stats['matched_category'] += 1
+                        
+                        # Get or create category
+                        category, _ = Category.objects.get_or_create(
+                            name=category_info['name'],
+                            defaults={'slug': category_info.get('slug', '')}
+                        )
+                        
+                        # Create product
+                        product, created = Product.objects.update_or_create(
+                            name=parsed['title'][:500],
+                            defaults={
+                                'category': category,
+                                'brand': parsed.get('brand', ''),
+                                'weight_value': parsed.get('weight_value'),
+                                'weight_unit': parsed.get('weight_unit', ''),
+                                'image_url': parsed.get('image_url', ''),
+                            }
+                        )
+                        
+                        # Create price
+                        aggregator = importer.ensure_aggregator(agg_name)
+                        city = importer.ensure_city(parsed.get('city', 'almaty'))
+                        
+                        Price.objects.update_or_create(
+                            product=product,
+                            aggregator=aggregator,
+                            city=city,
+                            defaults={
+                                'price': parsed.get('price'),
+                                'is_available': True
+                            }
+                        )
+                        
+                        file_count += 1
+                        total_imported += 1
+                    elif category_info:
+                        file_count += 1
+                        total_imported += 1
+                
+                aggregator_results[agg_name] = {'count': file_count}
+                
+            except Exception as e:
+                all_errors.append(f'{uploaded_file.name}: {str(e)}')
+    
+    finally:
+        # Cleanup temp files
+        import shutil
+        shutil.rmtree(temp_dir, ignore_errors=True)
+    
+    job.status = 'completed' if not all_errors else 'completed_with_errors'
+    job.success_count = total_imported
+    job.error_count = len(all_errors)
+    job.save()
+    
+    return Response({
+        'job_id': job.id,
+        'status': job.status,
+        'total_imported': total_imported,
+        'categories': {},
+        'aggregators': aggregator_results,
+        'stats': {'total_read': total_imported},
+        'errors': all_errors[:10],
+    })
+
+
 @api_view(['GET'])
 def export_products(request):
     """Export products to CSV"""

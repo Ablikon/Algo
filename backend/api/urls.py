@@ -26,6 +26,7 @@ urlpatterns = [
     # JSON import from Data folder
     path('import/json/info/', views.json_import_info, name='json-import-info'),
     path('import/json/', views.import_from_json, name='import-from-json'),
+    path('import/json/upload/', views.upload_custom_json, name='upload-custom-json'),
     # Export
     path('export/products/', views.export_products, name='export-products'),
     # Categories

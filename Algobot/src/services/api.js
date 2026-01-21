@@ -77,6 +77,10 @@ export const importAPI = {
   // JSON import from Data folder
   getJsonInfo: () => api.get('/import/json/info/'),
   importFromJson: (data) => api.post('/import/json/', data),
+  // Upload custom JSON files
+  uploadCustomJson: (formData) => api.post('/import/json/upload/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
 
 export const exportAPI = {
