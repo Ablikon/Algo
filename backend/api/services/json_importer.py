@@ -31,11 +31,12 @@ CATEGORY_PATTERNS = {
         'name': 'Газировки',
         'patterns': ['газир', 'soda', 'кола', 'cola', 'pepsi', 'fanta', 'sprite', '7up', 'лимонад'],
         'subcategories': {
-            'Coca-Cola': ['coca-cola', 'coca cola', 'кока-кола', 'кока кола'],
-            'Pepsi': ['pepsi', 'пепси'],
             'Fanta': ['fanta', 'фанта'],
             'Sprite': ['sprite', 'спрайт'],
+            'Pepsi': ['pepsi', 'пепси'],
             '7UP': ['7up', '7-up', 'seven up', 'севен ап'],
+            'Coca-Cola': ['coca-cola', 'coca cola', 'кока-кола', 'кока кола'], # Stricter
+            'Другие колы': ['cola', 'кола'], # Catch-all for "RC Cola", etc.
             'Другие газировки': [],  # Default subcategory
         }
     },
@@ -53,6 +54,17 @@ CATEGORY_PATTERNS = {
             'Alenka': ['аленка', 'alenka'],
             'Другой шоколад': [],  # Default subcategory
         }
+    },
+    # Categories to catch false positives
+    'salads_herbs': {
+        'name': 'Салаты и зелень',
+        'patterns': ['салат', 'зелень', 'рукола', 'шпинат', 'базилик', 'укроп', 'петрушка'],
+        'subcategories': {'Зелень': []}
+    },
+    'household': {
+        'name': 'Хозтовары',
+        'patterns': ['шампунь', 'гель для душа', 'мыло', 'паста', 'крем-краска', 'краска для волос', 'порошок'],
+        'subcategories': {'Уход': []}
     }
 }
 
@@ -157,89 +169,85 @@ class JSONDataImporter:
         return None, None
     
     def detect_category(self, product_data):
-        """Detect which category a product belongs to based on title and category fields"""
-        # Collect text to search
-        search_text = " ".join([
-            self.normalize_text(product_data.get('title', '')),
-            self.normalize_text(product_data.get('name', '')),
-            self.normalize_text(product_data.get('category_full_path', '')),
-            self.normalize_text(product_data.get('categoryName', '')),
-            self.normalize_text(product_data.get('sub_category', '')),
-            self.normalize_text(product_data.get('brand', '')),
-        ])
+        """Detect category using weighted field matching with stem support and exclusions"""
+        fields = {
+            'title': (product_data.get('title') or product_data.get('name') or product_data.get('product_name'), 10),
+            'brand': (product_data.get('brand'), 2),
+            'category_name': (product_data.get('categoryName') or product_data.get('sub_category') or product_data.get('category_full_path'), 5),
+        }
         
+        # 1. Detect Parent Category
+        cat_scores = {}
         for cat_slug, cat_info in CATEGORY_PATTERNS.items():
-            for pattern in cat_info['patterns']:
-                # Escape pattern to avoid regex errors, and use word boundaries
-                # Handle cases where pattern might be part of a larger word we want to ignore (e.g. 'Fanta' in 'Fantasy')
-                # But allow 'яйц' in 'яйца' (Russian morphology?)
-                # Actually, for Russian stem 'яйц', we want partial match?
-                # 'яйц' -> 'яйца', 'яйцо'. \bяйц\b won't match.
-                # 'fanta' -> \bfanta\b matches.
-                # So we distinguish between 'stems' and 'words'.
+            score = 0
+            for field_name, (text, weight) in fields.items():
+                if not text: continue
+                text = self.normalize_text(str(text))
                 
-                # Logic: If pattern length <= 4, maybe strict?
-                # User complaint is specific to 'Fanta' (matches Fantasy).
-                # 'soda', 'cola', 'pepsi', 'fanta', 'sprite', '7up', 'лимонад', 'tea'
-                # 'яйц' is a stem. 'шоколад' is a word/stem.
-                
-                # Hybrid approach:
-                # If pattern is ASCII (English), use strict word boundaries \b
-                # If pattern is Cyrillic, maybe allow suffix?
-                # But 'напит' matched 'напиток' (Drink) which matched Tea. I removed 'напит'.
-                # 'газир' matches 'газировка'.
-                
-                is_ascii = all(ord(c) < 128 for c in pattern)
-                regex = ""
-                if is_ascii:
-                     regex = r'\b' + re.escape(pattern) + r'\b'
-                else:
-                    # For cyrillic, allow small suffix? Or just simple contains for now?
-                    # 'яйц' matches 'яйца'. 'яйц' in 'яйца' is True.
-                    # 'шоколад' matches 'шоколадный'.
-                    # User didn't complain about RU matching issues.
-                    # "Fantasy" is English.
-                    # So I will apply STRICT regex only for ASCII patterns.
-                    pass # Use simple 'in' for non-ascii
-                    
-                if is_ascii:
-                    if re.search(regex, search_text, re.IGNORECASE):
-                        # Found category
-                        subcategory = self._detect_subcategory(cat_info, search_text)
-                        return cat_slug, cat_info['name'], subcategory
-                else:
-                    if pattern in search_text:
-                         # Found category
-                        subcategory = self._detect_subcategory(cat_info, search_text)
-                        return cat_slug, cat_info['name'], subcategory
-        
-        return None, None, None
-
-    def _detect_subcategory(self, cat_info, search_text):
-        """Helper to detect subcategory"""
-        subcategory = None
-        for subcat_name, subcat_patterns in cat_info['subcategories'].items():
-            if subcat_patterns:  # Skip default subcategories
-                for subpat in subcat_patterns:
-                    # Same logic for subcategories
-                    is_ascii = all(ord(c) < 128 for c in subpat)
+                for pattern in cat_info['patterns']:
+                    # Use a regex that allows Cyrillic suffixes for stems (e.g. 'шоколад' matches 'шоколадный')
+                    # \b at the start, but allow [а-яё]* at the end before the next \b
+                    is_ascii = all(ord(c) < 128 for c in pattern)
                     if is_ascii:
-                         if re.search(r'\b' + re.escape(subpat) + r'\b', search_text, re.IGNORECASE):
-                            subcategory = subcat_name
-                            break
+                        pattern_regex = r'\b' + re.escape(pattern) + r'\b' # Strict for English
                     else:
-                        if subpat in search_text:
-                            subcategory = subcat_name
-                            break
-            if subcategory:
-                break
+                        # For Cyrillic, allow suffixes like 'ный', 'ая', 'ое'
+                        pattern_regex = r'\b' + re.escape(pattern) + r'[а-яё]*\b'
+                    
+                    if re.search(pattern_regex, text, re.IGNORECASE):
+                        # Special check: avoid 'cola' matching in 'chocolate' or 'rucola'
+                        if pattern in ['cola', 'кола']:
+                            if 'шоколад' in text or 'рукола' in text:
+                                continue # Skip this match
+                                
+                        score += weight
+                        break
+            if score > 0:
+                cat_scores[cat_slug] = score
+
+        if not cat_scores:
+            return None, None, None
+            
+        # Pick category with highest score
+        detected_slug = max(cat_scores.items(), key=lambda x: x[1])[0]
+        cat_info = CATEGORY_PATTERNS[detected_slug]
         
-        # Use default subcategory if not found
-        if not subcategory:
-            default_subcats = [k for k, v in cat_info['subcategories'].items() if not v]
-            subcategory = default_subcats[0] if default_subcats else cat_info['name']
-        return subcategory
-    
+        # 2. Detect Subcategory
+        subcat_scores = {}
+        for subcat_name, subcat_patterns in cat_info['subcategories'].items():
+            if not subcat_patterns: continue
+            
+            score = 0
+            for field_name, (text, weight) in fields.items():
+                if not text: continue
+                text = self.normalize_text(str(text))
+                
+                for pattern in subcat_patterns:
+                    is_ascii = all(ord(c) < 128 for c in pattern)
+                    if is_ascii:
+                        pattern_regex = r'\b' + re.escape(pattern) + r'\b'
+                    else:
+                        pattern_regex = r'\b' + re.escape(pattern) + r'[а-яё]*\b'
+                        
+                    if re.search(pattern_regex, text, re.IGNORECASE):
+                        # Same exclusion for subcategories if they use generic terms
+                        if pattern in ['cola', 'кола'] and ('шоколад' in text or 'рукола' in text):
+                            continue
+                            
+                        score += weight
+                        break
+            if score > 0:
+                subcat_scores[subcat_name] = score
+
+        if subcat_scores:
+            best_subcat = max(subcat_scores.items(), key=lambda x: x[1])[0]
+            return detected_slug, cat_info['name'], best_subcat
+            
+        default_subcats = [k for k, v in cat_info['subcategories'].items() if not v]
+        subcategory = default_subcats[0] if default_subcats else cat_info['name']
+        
+        return detected_slug, cat_info['name'], subcategory
+
     def parse_product(self, data, aggregator_name):
         """Parse product data from different aggregator formats"""
         product = {
