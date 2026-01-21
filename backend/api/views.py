@@ -229,7 +229,10 @@ def dashboard_stats(request):
                 aggregator_counts[agg_name] += 1
 
         if our_price is None:
-            missing_products += 1
+            # Only count as missing if ACTUAL competitors have it
+            # If nobody has it, it's just unavailable/inactive
+            if competitor_prices:
+                missing_products += 1
         elif competitor_prices:
             min_competitor = min(competitor_prices)
             if our_price < min_competitor:
@@ -249,7 +252,8 @@ def dashboard_stats(request):
         potential_savings__isnull=False
     ).aggregate(total=Sum('potential_savings'))['total'] or Decimal('0')
 
-    total_with_our_price = total_products - missing_products
+    # Total products we sell (Lead + Need Action)
+    total_with_our_price = products_at_top + products_need_action
     market_coverage = (total_with_our_price / total_products * 100) if total_products > 0 else 0
     price_competitiveness = (products_at_top / total_with_our_price * 100) if total_with_our_price > 0 else 0
 

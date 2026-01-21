@@ -21,6 +21,12 @@ import { analyticsAPI, productsAPI } from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useCity } from '../contexts/CityContext';
 
+import magnumLogo from '../assets/Magnum_Cash_&_Carry.png';
+import woltLogo from '../assets/Wolt_id52_mlyiE_0.svg';
+import airbaFreshLogo from '../assets/Airba Fresh_idYXu-d5px_1.svg';
+import yandexLavkaLogo from '../assets/idq0QSew-z_1768990557463.png';
+import arbuzLogo from '../assets/id-kqZgjke_1768990623965.jpeg';
+
 const aggregatorColors = {
   glovo: '#00A082',
   yandex: '#FFCC00',
@@ -29,6 +35,15 @@ const aggregatorColors = {
   'airba fresh': '#78B833',
   arbuz: '#FF7F00',
   'yandex lavka': '#FFCC00',
+};
+
+const aggregatorLogos = {
+  magnum: magnumLogo,
+  wolt: woltLogo,
+  'airba fresh': airbaFreshLogo,
+  'yandex lavka': yandexLavkaLogo,
+  arbuz: arbuzLogo,
+  'arbuz.kz': arbuzLogo,
 };
 
 export default function Dashboard() {
@@ -206,8 +221,23 @@ export default function Dashboard() {
               .map(([name, data]) => (
                 <div key={name} className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: aggregatorColors[name.toLowerCase()] || '#94a3b8' }} />
+                    <span className="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2.5">
+                      {aggregatorLogos[name.toLowerCase()] ? (
+                        <div className={`flex items-center justify-center rounded-sm overflow-hidden ${name.toLowerCase() === 'airba fresh'
+                            ? 'w-9 h-6 bg-[#78B833]/10 p-1'
+                            : name.toLowerCase() === 'wolt'
+                              ? 'w-6 h-6'
+                              : 'w-5 h-5'
+                          }`}>
+                          <img
+                            src={aggregatorLogos[name.toLowerCase()]}
+                            alt={name}
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: aggregatorColors[name.toLowerCase()] || '#94a3b8' }} />
+                      )}
                       <span className="capitalize">{name}</span>
                     </span>
                     <span className="text-gray-500 font-medium">{data.percent}% <span className="text-[10px] opacity-60">({data.count})</span></span>
