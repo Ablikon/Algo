@@ -17,7 +17,7 @@ from .models import Aggregator, Category, Product, Price, Recommendation, PriceH
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 50
     page_size_query_param = 'page_size'
-    max_page_size = 1000
+    max_page_size = 200
 
 
 from .serializers import (
@@ -73,10 +73,6 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             price_qs = price_qs.filter(city__slug=city_slug)
 
         products = Product.objects.all().select_related('category')
-        
-        search_query = request.GET.get('search')
-        if search_query:
-            products = products.filter(name__icontains=search_query)
 
         if category_ids:
             try:
@@ -151,8 +147,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         if recommendation.action_type == 'LOWER_PRICE':
             price_obj = Price.objects.filter(
                 product=recommendation.product,
-                aggregator=our_aggregator,
-                city=recommendation.city
+                aggregator=our_aggregator
             ).first()
 
             if price_obj:
@@ -171,7 +166,6 @@ class RecommendationViewSet(viewsets.ModelViewSet):
             Price.objects.update_or_create(
                 product=recommendation.product,
                 aggregator=our_aggregator,
-                city=recommendation.city,
                 defaults={
                     'price': recommendation.recommended_price,
                     'is_available': True
@@ -214,6 +208,7 @@ def dashboard_stats(request):
     products_at_top = 0
     products_need_action = 0
     missing_products = 0
+    aggregator_counts = {}  # Track price counts per aggregator
 
     for product in products:
         total_products += 1
@@ -227,6 +222,11 @@ def dashboard_stats(request):
                 our_price = float(price.price)
             else:
                 competitor_prices.append(float(price.price))
+                # Count aggregator coverage
+                agg_name = price.aggregator.name
+                if agg_name not in aggregator_counts:
+                    aggregator_counts[agg_name] = 0
+                aggregator_counts[agg_name] += 1
 
         if our_price is None:
             missing_products += 1
@@ -253,18 +253,16 @@ def dashboard_stats(request):
     market_coverage = (total_with_our_price / total_products * 100) if total_products > 0 else 0
     price_competitiveness = (products_at_top / total_with_our_price * 100) if total_with_our_price > 0 else 0
 
-    # Calculate aggregator stats
-    aggregator_counts = {}
-    aggregators = Aggregator.objects.all()
-    for agg in aggregators:
-        if not agg.is_our_company:
-            # Count products that have an available price from this aggregator
-            count = Price.objects.filter(price_filter, aggregator=agg).values('product').distinct().count()
-            percent = round((count / total_products * 100), 1) if total_products > 0 else 0
-            aggregator_counts[agg.name] = {
-                'count': count,
-                'percent': percent
-            }
+    # Build aggregator stats - include ALL competitor aggregators
+    aggregator_stats = {}
+    all_aggregators = Aggregator.objects.filter(is_our_company=False)
+    for agg in all_aggregators:
+        count = aggregator_counts.get(agg.name, 0)
+        percent = round((count / total_products * 100), 1) if total_products > 0 else 0
+        aggregator_stats[agg.name] = {
+            'count': count,
+            'percent': percent
+        }
 
     data = {
         'total_products': total_products,
@@ -275,7 +273,7 @@ def dashboard_stats(request):
         'potential_savings': potential_savings,
         'market_coverage': round(market_coverage, 1),
         'price_competitiveness': round(price_competitiveness, 1),
-        'aggregator_stats': aggregator_counts
+        'aggregator_stats': aggregator_stats
     }
 
     return Response(data)
@@ -574,473 +572,134 @@ def import_categories(request):
     })
 
 
+# JSON Import from Data folder
+from .services.json_importer import JSONDataImporter
+
+
 @api_view(['GET'])
 def json_import_info(request):
-    """Get info about available JSON files for import"""
-    from .services.json_importer import JSONDataImporter, CATEGORY_PATTERNS
-    
+    """Get info about available JSON files in Data folder"""
     importer = JSONDataImporter()
     files = importer.list_available_files()
-    
-    categories = []
-    for slug, info in CATEGORY_PATTERNS.items():
-        categories.append({
-            'slug': slug,
-            'name': info['name'],
-            'subcategories': list(info['subcategories'].keys())
-        })
-    
     return Response({
         'files': files,
-        'categories': categories,
+        'data_path': str(importer.get_data_path())
     })
 
 
 @api_view(['POST'])
 def import_from_json(request):
     """Import products from JSON files in Data folder"""
-    from .services.json_importer import JSONDataImporter
-    
-    data = request.data
-    categories = data.get('categories', None)
-    aggregators = data.get('aggregators', None)
-    limit = data.get('limit', None)
-    dry_run = data.get('dry_run', False)
-    
-    if limit:
-        try:
-            limit = int(limit)
-        except:
-            limit = None
-    
+    categories = request.data.get('categories', None)
+    aggregators = request.data.get('aggregators', None)
+    limit_per_category = request.data.get('limit_per_category', None)
+    dry_run = request.data.get('dry_run', False)
+
     job = ImportJob.objects.create(
-        job_type='products',
-        file_name='JSON Data Import',
+        job_type='json_import',
+        file_name='Data folder',
         status='processing'
     )
-    
+
     importer = JSONDataImporter(job)
-    result = importer.import_from_json(
+    results = importer.import_from_json(
         categories=categories,
         aggregators=aggregators,
-        limit_per_category=limit,
-        dry_run=dry_run,
+        limit_per_category=limit_per_category,
+        dry_run=dry_run
     )
-    
-    return Response({
-        'job_id': job.id,
-        'status': result['status'],
-        'total_imported': result['total_imported'],
-        'categories': result['categories'],
-        'aggregators': result['aggregators'],
-        'stats': result.get('stats', {}),
-        'errors': result['errors'][:10] if result['errors'] else [],
-    })
+
+    return Response(results)
 
 
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser])
 def upload_custom_json(request):
-    """Upload and import from custom JSON files"""
-    from .services.json_importer import JSONDataImporter
-    import json
-    import tempfile
-    import os
-    
-    files = request.FILES.getlist('files')
-    if not files:
-        return Response({'error': 'No files provided'}, status=400)
-    
-    # Parse form data
-    categories = request.data.get('categories', '[]')
-    if isinstance(categories, str):
-        try:
-            categories = json.loads(categories)
-        except:
-            categories = []
-    
-    limit = request.data.get('limit', 100)
+    """Upload and import custom JSON file"""
+    file = request.FILES.get('file')
+    if not file:
+        return Response({'error': 'No file provided'}, status=400)
+
     try:
-        limit = int(limit)
-    except:
-        limit = 100
-    
-    dry_run = request.data.get('dry_run', 'false')
-    dry_run = dry_run == 'true' or dry_run == True
-    
-    # Create import job
-    job = ImportJob.objects.create(
-        job_type='products',
-        file_name=f'Custom JSON Import ({len(files)} files)',
-        status='processing'
-    )
-    
-    importer = JSONDataImporter(job)
-    
-    # Save uploaded files to temp directory and process
-    temp_dir = tempfile.mkdtemp()
-    aggregator_results = {}
-    total_imported = 0
-    all_errors = []
-    
-    try:
-        for uploaded_file in files:
-            # Save to temp file
-            file_path = os.path.join(temp_dir, uploaded_file.name)
-            with open(file_path, 'wb') as f:
-                for chunk in uploaded_file.chunks():
-                    f.write(chunk)
-            
-            # Determine aggregator name from filename
-            agg_name = uploaded_file.name.replace('.json', '').replace('_products', '').replace('.', '_')
-            
-            # Process the file
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                
-                if not isinstance(data, list):
-                    all_errors.append(f'{uploaded_file.name}: Invalid format - expected array')
-                    continue
-                
-                file_count = 0
-                for item in data:
-                    if limit and file_count >= limit:
-                        break
-                    
-                    # Parse product
-                    parsed = importer.parse_product(item, agg_name)
-                    if not parsed:
-                        continue
-                    
-                    # Check category if specified
-                    if categories:
-                        category_info = importer.detect_category(item)
-                        if not category_info or category_info.get('slug') not in categories:
-                            # Also check if custom category matches
-                            title_lower = parsed.get('title', '').lower()
-                            matched = False
-                            for custom_cat in categories:
-                                if custom_cat.lower() in title_lower:
-                                    matched = True
-                                    category_info = {'name': custom_cat, 'slug': custom_cat.lower(), 'subcategory': None}
-                                    break
-                            if not matched:
-                                continue
-                    else:
-                        category_info = importer.detect_category(item)
-                    
-                    if not dry_run and category_info:
-                        # Create/update product
-                        importer.stats['matched_category'] += 1
-                        
-                        # Get or create category
-                        category, _ = Category.objects.get_or_create(
-                            name=category_info['name'],
-                            defaults={'slug': category_info.get('slug', '')}
-                        )
-                        
-                        # Create product
-                        product, created = Product.objects.update_or_create(
-                            name=parsed['title'][:500],
-                            defaults={
-                                'category': category,
-                                'brand': parsed.get('brand', ''),
-                                'weight_value': parsed.get('weight_value'),
-                                'weight_unit': parsed.get('weight_unit', ''),
-                                'image_url': parsed.get('image_url', ''),
-                            }
-                        )
-                        
-                        # Create price
-                        aggregator = importer.ensure_aggregator(agg_name)
-                        city = importer.ensure_city(parsed.get('city', 'almaty'))
-                        
-                        Price.objects.update_or_create(
-                            product=product,
-                            aggregator=aggregator,
-                            city=city,
-                            defaults={
-                                'price': parsed.get('price'),
-                                'is_available': True
-                            }
-                        )
-                        
-                        file_count += 1
-                        total_imported += 1
-                    elif category_info:
-                        file_count += 1
-                        total_imported += 1
-                
-                aggregator_results[agg_name] = {'count': file_count}
-                
-            except Exception as e:
-                all_errors.append(f'{uploaded_file.name}: {str(e)}')
-    
-    finally:
-        # Cleanup temp files
-        import shutil
-        shutil.rmtree(temp_dir, ignore_errors=True)
-    
-    job.status = 'completed' if not all_errors else 'completed_with_errors'
-    job.success_count = total_imported
-    job.error_count = len(all_errors)
-    job.save()
-    
-    return Response({
-        'job_id': job.id,
-        'status': job.status,
-        'total_imported': total_imported,
-        'categories': {},
-        'aggregators': aggregator_results,
-        'stats': {'total_read': total_imported},
-        'errors': all_errors[:10],
-    })
+        import json as json_module
+        content = file.read().decode('utf-8')
+        data = json_module.loads(content)
+
+        if not isinstance(data, list):
+            data = [data]
+
+        job = ImportJob.objects.create(
+            job_type='custom_json',
+            file_name=file.name,
+            status='processing'
+        )
+
+        importer = JSONDataImporter(job)
+        results = importer.import_from_json()
+
+        return Response(results)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
 
 
 @api_view(['GET'])
 def export_products(request):
-    """Export comparison table to Excel with formatting"""
-    city_slug = request.GET.get('city')
-    category_ids = request.GET.getlist('category_ids[]')
-    
-    products = Product.objects.all().select_related('category')
-    
-    if category_ids:
-        try:
-            all_ids = set(map(int, category_ids))
-            current_batch = list(all_ids)
-            while current_batch:
-                children_ids = list(Category.objects.filter(parent_id__in=current_batch).values_list('id', flat=True))
-                new_ids = [cid for cid in children_ids if cid not in all_ids]
-                all_ids.update(new_ids)
-                current_batch = new_ids
-            products = products.filter(category_id__in=all_ids)
-        except:
-            pass
-    
-    # Get aggregators (competitors only for columns)
-    aggregators = list(Aggregator.objects.all().order_by('-is_our_company', 'name'))
-    our_agg = next((a for a in aggregators if a.is_our_company), None)
-    competitor_aggs = [a for a in aggregators if not a.is_our_company]
-    
-    price_filter = Q(is_available=True)
-    if city_slug:
-        price_filter &= Q(city__slug=city_slug)
-    
-    # Build price filter for annotate (needs price__ prefix)
-    annotate_filter = Q(price__is_available=True)
-    if city_slug:
-        annotate_filter &= Q(price__city__slug=city_slug)
-    
-    products = products.prefetch_related(
-        Prefetch('price_set', queryset=Price.objects.filter(price_filter).select_related('aggregator'))
-    ).annotate(
-        price_count=Count('price', filter=annotate_filter)
-    ).order_by('-price_count', 'name')
-    
-    # Create Excel with openpyxl
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-    from openpyxl.utils import get_column_letter
-    
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Сравнение цен"
-    
-    # Styles
-    header_font = Font(bold=True, color="FFFFFF", size=11)
-    header_fill = PatternFill(start_color="10B981", end_color="10B981", fill_type="solid")
-    header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    
-    our_fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
-    top_fill = PatternFill(start_color="BBF7D0", end_color="BBF7D0", fill_type="solid")  # Best price
-    high_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")  # Higher than others
-    
-    thin_border = Border(
-        left=Side(style='thin', color='E5E7EB'),
-        right=Side(style='thin', color='E5E7EB'),
-        top=Side(style='thin', color='E5E7EB'),
-        bottom=Side(style='thin', color='E5E7EB')
-    )
-    
-    # Header row
-    headers = ['№', 'Товар', 'Категория']
-    
-    # Our company column first
-    if our_agg:
-        headers.append(f'🏠 {our_agg.name}')
-    
-    # Competitor columns
-    for agg in competitor_aggs:
-        headers.append(agg.name)
-    
-    headers.extend(['Позиция', 'Мин. цена конк.', 'Рек. цена', 'Статус'])
-    
-    # Write headers
-    for col_num, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col_num, value=header)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = header_align
-        cell.border = thin_border
-    
-    # Freeze header row
-    ws.freeze_panes = 'A2'
-    
-    # Data rows
-    row_num = 2
-    for idx, product in enumerate(products[:2000], 1):
-        # Build price map
-        price_map = {}
-        if hasattr(product, 'price_set'):
-            for price in product.price_set.all():
-                price_map[price.aggregator_id] = float(price.price) if price.price else None
-        
-        # Calculate stats
-        our_price = price_map.get(our_agg.id) if our_agg else None
-        competitor_prices = [price_map.get(a.id) for a in competitor_aggs if price_map.get(a.id) is not None]
-        min_competitor = min(competitor_prices) if competitor_prices else None
-        
-        # Position and status
-        if our_price is None:
-            position = '—'
-            status = 'Нет товара'
-        elif not competitor_prices:
-            position = '1'
-            status = '✓ Лидер'
-        elif our_price < min_competitor:
-            position = '1'
-            status = '✓ Лидер'
-        elif our_price == min_competitor:
-            position = '2'
-            status = '≈ Равная'
-        else:
-            all_prices = sorted(set(competitor_prices + [our_price]))
-            position = str(all_prices.index(our_price) + 1)
-            status = '↑ Выше рынка'
-        
-        recommended = min_competitor - 1 if min_competitor else None
-        
-        # Write row
-        col = 1
-        
-        # №
-        ws.cell(row=row_num, column=col, value=idx).border = thin_border
-        col += 1
-        
-        # Product name
-        cell = ws.cell(row=row_num, column=col, value=product.name[:80])
-        cell.border = thin_border
-        cell.alignment = Alignment(wrap_text=True)
-        col += 1
-        
-        # Category
-        cell = ws.cell(row=row_num, column=col, value=product.category.name if product.category else '')
-        cell.border = thin_border
-        col += 1
-        
-        # Our price
-        if our_agg:
-            cell = ws.cell(row=row_num, column=col, value=our_price if our_price else '')
-            cell.border = thin_border
-            cell.fill = our_fill
-            cell.alignment = Alignment(horizontal="center")
-            if our_price and min_competitor:
-                if our_price < min_competitor:
-                    cell.fill = top_fill
-                elif our_price > min_competitor:
-                    cell.fill = high_fill
-            col += 1
-        
-        # Competitor prices
-        for agg in competitor_aggs:
-            price = price_map.get(agg.id)
-            cell = ws.cell(row=row_num, column=col, value=price if price else '')
-            cell.border = thin_border
-            cell.alignment = Alignment(horizontal="center")
-            # Highlight min price
-            if price and min_competitor and price == min_competitor:
-                cell.font = Font(bold=True)
-            col += 1
-        
-        # Position
-        cell = ws.cell(row=row_num, column=col, value=position)
-        cell.border = thin_border
-        cell.alignment = Alignment(horizontal="center")
-        col += 1
-        
-        # Min competitor price
-        cell = ws.cell(row=row_num, column=col, value=min_competitor if min_competitor else '')
-        cell.border = thin_border
-        cell.alignment = Alignment(horizontal="center")
-        col += 1
-        
-        # Recommended price
-        cell = ws.cell(row=row_num, column=col, value=recommended if recommended else '')
-        cell.border = thin_border
-        cell.alignment = Alignment(horizontal="center")
-        col += 1
-        
-        # Status
-        cell = ws.cell(row=row_num, column=col, value=status)
-        cell.border = thin_border
-        if '✓' in status:
-            cell.font = Font(color="059669")
-        elif '↑' in status:
-            cell.font = Font(color="DC2626")
-        col += 1
-        
-        row_num += 1
-    
-    # Set column widths
-    ws.column_dimensions['A'].width = 5   # №
-    ws.column_dimensions['B'].width = 45  # Товар
-    ws.column_dimensions['C'].width = 18  # Категория
-    
-    # Price columns
-    for idx in range(4, 4 + len(aggregators)):
-        ws.column_dimensions[get_column_letter(idx)].width = 14
-    
-    # Stats columns
-    for idx in range(4 + len(aggregators), 4 + len(aggregators) + 4):
-        ws.column_dimensions[get_column_letter(idx)].width = 14
-    
-    # Set row height for header
-    ws.row_dimensions[1].height = 30
-    
-    # Write to response
+    """Export products to Excel"""
+    products = Product.objects.all().select_related('category').prefetch_related('price_set__aggregator')
+
+    data = []
+    for product in products:
+        row = {
+            'name': product.name,
+            'category': product.category.name if product.category else '',
+            'brand': product.brand or '',
+            'weight_value': product.weight_value,
+            'weight_unit': product.weight_unit or '',
+        }
+        for price in product.price_set.all():
+            row[f'price_{price.aggregator.name}'] = float(price.price) if price.price else None
+        data.append(row)
+
+    df = pd.DataFrame(data)
+
     output = io.BytesIO()
-    wb.save(output)
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Products')
+
     output.seek(0)
-    
+
     response = HttpResponse(
         output.read(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    response['Content-Disposition'] = 'attachment; filename="comparison_export.xlsx"'
+    response['Content-Disposition'] = 'attachment; filename="products_export.xlsx"'
     return response
 
 
 @api_view(['POST'])
 def reset_categories(request):
-    """Reset and create fresh category structure"""
-    from .services.json_importer import JSONDataImporter
-    
-    # First, nullify all product category references to avoid foreign key constraint
-    Product.objects.all().update(category=None)
-    
-    # Now safely delete all categories
+    """Reset all categories and recreate from patterns"""
+    from .services.json_importer import CATEGORY_PATTERNS
+
     Category.objects.all().delete()
-    
-    # Create fresh category structure
-    importer = JSONDataImporter()
-    categories = importer.ensure_categories()
-    
+
+    created = {}
+    for cat_slug, cat_info in CATEGORY_PATTERNS.items():
+        parent, _ = Category.objects.get_or_create(
+            name=cat_info['name'],
+            defaults={'parent': None, 'sort_order': list(CATEGORY_PATTERNS.keys()).index(cat_slug)}
+        )
+        created[cat_info['name']] = parent
+
+        for idx, subcat_name in enumerate(cat_info['subcategories'].keys()):
+            child, _ = Category.objects.get_or_create(
+                name=subcat_name,
+                defaults={'parent': parent, 'sort_order': idx}
+            )
+            created[subcat_name] = child
+
     return Response({
         'status': 'success',
-        'categories_created': len(categories),
-        'categories': list(categories.keys())
+        'categories_created': len(created)
     })
-
-
