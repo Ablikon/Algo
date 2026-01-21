@@ -796,7 +796,7 @@ def upload_custom_json(request):
 
 @api_view(['GET'])
 def export_products(request):
-    """Export products to CSV"""
+    """Export comparison table to Excel with formatting"""
     city_slug = request.GET.get('city')
     category_ids = request.GET.getlist('category_ids[]')
     
@@ -815,48 +815,206 @@ def export_products(request):
         except:
             pass
     
-    aggregators = Aggregator.objects.all()
-    
-    response = HttpResponse(content_type='text/csv; charset=utf-8')
-    response['Content-Disposition'] = 'attachment; filename="products_export.csv"'
-    response.write('\ufeff')
-    
-    writer = csv.writer(response)
-    
-    header = ['ID', 'Название', 'Категория', 'Бренд', 'Страна', 'Вес', 'Ед.изм']
-    for agg in aggregators:
-        header.append(f'Цена {agg.name}')
-    writer.writerow(header)
+    # Get aggregators (competitors only for columns)
+    aggregators = list(Aggregator.objects.all().order_by('-is_our_company', 'name'))
+    our_agg = next((a for a in aggregators if a.is_our_company), None)
+    competitor_aggs = [a for a in aggregators if not a.is_our_company]
     
     price_filter = Q(is_available=True)
     if city_slug:
         price_filter &= Q(city__slug=city_slug)
     
+    # Build price filter for annotate (needs price__ prefix)
+    annotate_filter = Q(price__is_available=True)
+    if city_slug:
+        annotate_filter &= Q(price__city__slug=city_slug)
+    
     products = products.prefetch_related(
         Prefetch('price_set', queryset=Price.objects.filter(price_filter).select_related('aggregator'))
+    ).annotate(
+        price_count=Count('price', filter=annotate_filter)
+    ).order_by('-price_count', 'name')
+    
+    # Create Excel with openpyxl
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Сравнение цен"
+    
+    # Styles
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="10B981", end_color="10B981", fill_type="solid")
+    header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    
+    our_fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
+    top_fill = PatternFill(start_color="BBF7D0", end_color="BBF7D0", fill_type="solid")  # Best price
+    high_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")  # Higher than others
+    
+    thin_border = Border(
+        left=Side(style='thin', color='E5E7EB'),
+        right=Side(style='thin', color='E5E7EB'),
+        top=Side(style='thin', color='E5E7EB'),
+        bottom=Side(style='thin', color='E5E7EB')
     )
     
-    for product in products[:5000]:
-        row = [
-            product.id,
-            product.name,
-            product.category.name if product.category else '',
-            product.brand or '',
-            product.country_of_origin or '',
-            str(product.weight_value) if product.weight_value else '',
-            product.weight_unit or '',
-        ]
-        
+    # Header row
+    headers = ['№', 'Товар', 'Категория']
+    
+    # Our company column first
+    if our_agg:
+        headers.append(f'🏠 {our_agg.name}')
+    
+    # Competitor columns
+    for agg in competitor_aggs:
+        headers.append(agg.name)
+    
+    headers.extend(['Позиция', 'Мин. цена конк.', 'Рек. цена', 'Статус'])
+    
+    # Write headers
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = thin_border
+    
+    # Freeze header row
+    ws.freeze_panes = 'A2'
+    
+    # Data rows
+    row_num = 2
+    for idx, product in enumerate(products[:2000], 1):
+        # Build price map
         price_map = {}
         if hasattr(product, 'price_set'):
             for price in product.price_set.all():
-                price_map[price.aggregator_id] = price.price
+                price_map[price.aggregator_id] = float(price.price) if price.price else None
         
-        for agg in aggregators:
-            row.append(str(price_map.get(agg.id, '')) if price_map.get(agg.id) else '')
+        # Calculate stats
+        our_price = price_map.get(our_agg.id) if our_agg else None
+        competitor_prices = [price_map.get(a.id) for a in competitor_aggs if price_map.get(a.id) is not None]
+        min_competitor = min(competitor_prices) if competitor_prices else None
         
-        writer.writerow(row)
+        # Position and status
+        if our_price is None:
+            position = '—'
+            status = 'Нет товара'
+        elif not competitor_prices:
+            position = '1'
+            status = '✓ Лидер'
+        elif our_price < min_competitor:
+            position = '1'
+            status = '✓ Лидер'
+        elif our_price == min_competitor:
+            position = '2'
+            status = '≈ Равная'
+        else:
+            all_prices = sorted(set(competitor_prices + [our_price]))
+            position = str(all_prices.index(our_price) + 1)
+            status = '↑ Выше рынка'
+        
+        recommended = min_competitor - 1 if min_competitor else None
+        
+        # Write row
+        col = 1
+        
+        # №
+        ws.cell(row=row_num, column=col, value=idx).border = thin_border
+        col += 1
+        
+        # Product name
+        cell = ws.cell(row=row_num, column=col, value=product.name[:80])
+        cell.border = thin_border
+        cell.alignment = Alignment(wrap_text=True)
+        col += 1
+        
+        # Category
+        cell = ws.cell(row=row_num, column=col, value=product.category.name if product.category else '')
+        cell.border = thin_border
+        col += 1
+        
+        # Our price
+        if our_agg:
+            cell = ws.cell(row=row_num, column=col, value=our_price if our_price else '')
+            cell.border = thin_border
+            cell.fill = our_fill
+            cell.alignment = Alignment(horizontal="center")
+            if our_price and min_competitor:
+                if our_price < min_competitor:
+                    cell.fill = top_fill
+                elif our_price > min_competitor:
+                    cell.fill = high_fill
+            col += 1
+        
+        # Competitor prices
+        for agg in competitor_aggs:
+            price = price_map.get(agg.id)
+            cell = ws.cell(row=row_num, column=col, value=price if price else '')
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal="center")
+            # Highlight min price
+            if price and min_competitor and price == min_competitor:
+                cell.font = Font(bold=True)
+            col += 1
+        
+        # Position
+        cell = ws.cell(row=row_num, column=col, value=position)
+        cell.border = thin_border
+        cell.alignment = Alignment(horizontal="center")
+        col += 1
+        
+        # Min competitor price
+        cell = ws.cell(row=row_num, column=col, value=min_competitor if min_competitor else '')
+        cell.border = thin_border
+        cell.alignment = Alignment(horizontal="center")
+        col += 1
+        
+        # Recommended price
+        cell = ws.cell(row=row_num, column=col, value=recommended if recommended else '')
+        cell.border = thin_border
+        cell.alignment = Alignment(horizontal="center")
+        col += 1
+        
+        # Status
+        cell = ws.cell(row=row_num, column=col, value=status)
+        cell.border = thin_border
+        if '✓' in status:
+            cell.font = Font(color="059669")
+        elif '↑' in status:
+            cell.font = Font(color="DC2626")
+        col += 1
+        
+        row_num += 1
     
+    # Set column widths
+    ws.column_dimensions['A'].width = 5   # №
+    ws.column_dimensions['B'].width = 45  # Товар
+    ws.column_dimensions['C'].width = 18  # Категория
+    
+    # Price columns
+    for idx in range(4, 4 + len(aggregators)):
+        ws.column_dimensions[get_column_letter(idx)].width = 14
+    
+    # Stats columns
+    for idx in range(4 + len(aggregators), 4 + len(aggregators) + 4):
+        ws.column_dimensions[get_column_letter(idx)].width = 14
+    
+    # Set row height for header
+    ws.row_dimensions[1].height = 30
+    
+    # Write to response
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="comparison_export.xlsx"'
     return response
 
 
