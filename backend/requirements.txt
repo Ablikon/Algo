@@ -1,0 +1,26 @@
+# Backend Requirements for FastAPI + MongoDB
+# Updated for Python 3.13 compatibility
+
+# FastAPI framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+
+# MongoDB async driver
+motor>=3.3.0
+pymongo>=4.6.0
+
+# Data validation
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# OpenAI API
+openai>=1.10.0
+
+# Utilities
+python-dotenv>=1.0.0
+httpx>=0.26.0
+
+# Excel/CSV export
+pandas>=2.0.0
+openpyxl>=3.1.0

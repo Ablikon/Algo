@@ -48,14 +48,16 @@ const aggregatorLogos = {
 
 export default function Dashboard() {
   const { t } = useLanguage();
-  const { refreshKey } = useCity();
+  const { refreshKey, currentCity } = useCity();
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Only fetch if we have a city (or if we want to allow global stats, but usually we want city)
+    // Adding currentCity?.slug to dependency to refetch when auto-selected
     fetchData();
-  }, [refreshKey]);
+  }, [refreshKey, currentCity?.slug]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -224,10 +226,10 @@ export default function Dashboard() {
                     <span className="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2.5">
                       {aggregatorLogos[name.toLowerCase()] ? (
                         <div className={`flex items-center justify-center rounded-sm overflow-hidden ${name.toLowerCase() === 'airba fresh'
-                            ? 'w-9 h-6 bg-[#78B833]/10 p-1'
-                            : name.toLowerCase() === 'wolt'
-                              ? 'w-6 h-6'
-                              : 'w-5 h-5'
+                          ? 'w-9 h-6 bg-[#78B833]/10 p-1'
+                          : name.toLowerCase() === 'wolt'
+                            ? 'w-6 h-6'
+                            : 'w-5 h-5'
                           }`}>
                           <img
                             src={aggregatorLogos[name.toLowerCase()]}

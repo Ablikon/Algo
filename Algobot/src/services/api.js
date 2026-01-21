@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+// API Base URL - uses relative path in production (proxied by nginx)
+// or localhost in development
+const API_BASE_URL = import.meta.env.PROD
+  ? '/api'
+  : 'http://localhost:8000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -9,6 +13,7 @@ const api = axios.create({
   },
 });
 
+// Add city parameter to all requests
 api.interceptors.request.use((config) => {
   const citySlug = localStorage.getItem('selectedCity');
   if (citySlug) {
@@ -25,14 +30,15 @@ export const categoriesAPI = {
   getAll: () => api.get('/categories/'),
   getTree: () => api.get('/categories/tree/'),
   create: (data) => api.post('/categories/', data),
-  update: (id, data) => api.patch(`/categories/${id}/`, data),
-  delete: (id) => api.delete(`/categories/${id}/`),
+  update: (id, data) => api.patch(`/categories/${id}`, data),
+  delete: (id) => api.delete(`/categories/${id}`),
 };
 
 export const productsAPI = {
   getAll: () => api.get('/products/'),
-  // accept optional params object -> passed to request as query params
+  // Get products with prices for comparison
   getComparison: (params = {}) => api.get('/products/comparison/', { params }),
+  getById: (id) => api.get(`/products/${id}`),
 };
 
 export const recommendationsAPI = {
@@ -54,33 +60,16 @@ export const algorithmAPI = {
 export const productLinksAPI = {
   getAll: (productId) => api.get('/product-links/', { params: { product_id: productId } }),
   create: (data) => api.post('/product-links/', data),
-  update: (id, data) => api.patch(`/product-links/${id}/`, data),
-  delete: (id) => api.delete(`/product-links/${id}/`),
+  update: (id, data) => api.patch(`/product-links/${id}`, data),
+  delete: (id) => api.delete(`/product-links/${id}`),
 };
 
 export const importAPI = {
-  uploadProducts: (formData) => api.post('/import/products/', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
-  uploadPrices: (formData) => api.post('/import/prices/', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
-  uploadLinks: (formData) => api.post('/import/links/', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
-  uploadCategories: (formData) => api.post('/import/categories/', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
-  getJobs: () => api.get('/import-jobs/'),
-  getJobStatus: (id) => api.get(`/import-jobs/${id}/`),
-  downloadTemplate: (type) => `${API_BASE_URL}/import/template/${type}/`,
   // JSON import from Data folder
   getJsonInfo: () => api.get('/import/json/info/'),
   importFromJson: (data) => api.post('/import/json/', data),
-  // Upload custom JSON files
-  uploadCustomJson: (formData) => api.post('/import/json/upload/', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
+  // Run product matching
+  runMatching: (params = {}) => api.post('/import/run-matching/', null, { params }),
 };
 
 export const exportAPI = {
@@ -92,4 +81,3 @@ export const categoriesResetAPI = {
 };
 
 export default api;
-
