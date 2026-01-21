@@ -19,15 +19,20 @@ def run():
     count = 0
     new_recs = 0
     
-    for product in products:
-        rec = matcher.run(product)
-        if rec:
-            new_recs += 1
-        count += 1
-        if count % 100 == 0:
-            print(f"Processed {count}...")
-            
-    print(f"Done. Generated {new_recs} recommendations.")
+    for city_slug in ['almaty', 'astana']:
+        print(f"Regenerating for {city_slug}...")
+        count = 0
+        new_recs = 0
+        
+        for product in products:
+            rec = matcher.run(product, city_slug=city_slug)
+            if rec:
+                new_recs += 1
+            count += 1
+            if count % 100 == 0:
+                print(f"Processed {count} in {city_slug}...")
+                
+        print(f"Done for {city_slug}. Generated {new_recs} recommendations.")
 
 if __name__ == '__main__':
     run()

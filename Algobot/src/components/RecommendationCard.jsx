@@ -46,13 +46,13 @@ export default function RecommendationCard({ recommendation, onApply, onReject, 
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="font-bold text-gray-900 dark:text-white text-sm line-clamp-2 leading-tight h-[2.5rem]" title={recommendation.product_name}>
+            <h3 className="font-bold text-gray-900 dark:text-white text-sm leading-tight" title={recommendation.product_name}>
               {recommendation.product_name}
             </h3>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 overflow-hidden">
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate max-w-[100px] font-medium uppercase tracking-tighter">{recommendation.category_name}</p>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium uppercase tracking-tighter">{recommendation.category_name}</p>
               {recommendation.brand && (
-                <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50 truncate max-w-[70px]">
+                <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50">
                   {recommendation.brand}
                 </span>
               )}

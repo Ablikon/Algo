@@ -147,7 +147,8 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         if recommendation.action_type == 'LOWER_PRICE':
             price_obj = Price.objects.filter(
                 product=recommendation.product,
-                aggregator=our_aggregator
+                aggregator=our_aggregator,
+                city=recommendation.city
             ).first()
 
             if price_obj:
@@ -166,6 +167,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
             Price.objects.update_or_create(
                 product=recommendation.product,
                 aggregator=our_aggregator,
+                city=recommendation.city,
                 defaults={
                     'price': recommendation.recommended_price,
                     'is_available': True

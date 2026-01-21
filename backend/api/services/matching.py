@@ -151,8 +151,11 @@ class ProductMatcher:
         except:
              return Decimal(str(normalized_price))
 
-    def run(self, product):
+    def run(self, product, city_slug=None):
         prices = Price.objects.filter(product=product).select_related('aggregator')
+        if city_slug:
+            prices = prices.filter(city__slug=city_slug)
+            
         our_price_obj = None
         competitor_prices = []
 
@@ -246,6 +249,11 @@ class ProductMatcher:
 
         rec = None
 
+        # Get city object
+        city = None
+        if city_slug:
+            city = City.objects.filter(slug=city_slug).first()
+
         if not our_raw:
              # We don't have a price -> ADD PRODUCT
             rec = Recommendation(
@@ -255,7 +263,8 @@ class ProductMatcher:
                 recommended_price=target_raw,
                 competitor_price=Decimal(str(best_competitor['raw_price'])),
                 priority='HIGH',
-                status='PENDING'
+                status='PENDING',
+                city=city
             )
         
         elif our_norm > best_competitor['normalized_price']:
@@ -273,7 +282,8 @@ class ProductMatcher:
                 competitor_price=Decimal(str(best_competitor['raw_price'])), # Shows their raw price on shelf
                 potential_savings=Decimal(str(savings)),
                 priority=priority,
-                status='PENDING'
+                status='PENDING',
+                city=city
             )
         
         if rec:
