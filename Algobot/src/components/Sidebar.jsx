@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
 
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -45,7 +46,6 @@ export default function Sidebar() {
   const menuItems = [
     { path: '/', icon: LayoutDashboard, labelKey: 'dashboard' },
     { path: '/comparison', icon: Table2, labelKey: 'comparison' },
-    { path: '/recommendations', icon: Lightbulb, labelKey: 'recommendations' },
     { path: '/analytics', icon: TrendingUp, labelKey: 'analytics' },
     { path: '/database', icon: Database, labelKey: 'database' },
   ];
@@ -57,7 +57,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="p-6 shrink-0 border-b border-gray-50 dark:border-slate-700/50">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200 dark:shadow-none">
+          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200 dark:shadow-none font-semibold">
             <TrendingUp className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -69,23 +69,54 @@ export default function Sidebar() {
 
       {/* Navigation - Scrollable Area */}
       <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">
-        <nav className="px-4 space-y-1">
-          {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200 dark:shadow-none font-semibold'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-              >
-                <item.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'opacity-70'}`} />
-                <span className="text-sm">{t(item.labelKey)}</span>
-              </Link>
-            );
-          })}
+        <nav className="px-4 space-y-2">
+          <LayoutGroup id="sidebar">
+            {menuItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className="relative group flex items-center gap-3 px-4 py-3 rounded-xl no-underline"
+                >
+                  {/* Active Background - Shared Layout */}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeNavHighlight"
+                      className="absolute inset-0 bg-emerald-500 rounded-xl shadow-lg shadow-emerald-200/50 dark:shadow-none"
+                      initial={false}
+                      transition={{
+                        type: "spring",
+                        stiffness: 350,
+                        damping: 30,
+                        mass: 0.8
+                      }}
+                    />
+                  )}
+
+                  {/* Icon & Label - Animated together */}
+                  <motion.div
+                    animate={{
+                      color: isActive ? "#ffffff" : theme === 'dark' ? "#94a3b8" : "#4b5563"
+                    }}
+                    transition={{ duration: 0.2 }}
+                    className="relative z-10 flex items-center gap-3 w-full"
+                  >
+                    <item.icon
+                      className="w-5 h-5 shrink-0 transition-opacity duration-200"
+                      style={{ opacity: isActive ? 1 : 0.7 }}
+                    />
+                    <span className="text-sm font-bold tracking-tight">{t(item.labelKey)}</span>
+                  </motion.div>
+
+                  {/* Hover background for non-active items */}
+                  {!isActive && (
+                    <div className="absolute inset-0 bg-gray-100 dark:bg-slate-700/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                  )}
+                </Link>
+              );
+            })}
+          </LayoutGroup>
         </nav>
       </div>
 

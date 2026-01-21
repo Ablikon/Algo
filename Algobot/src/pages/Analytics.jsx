@@ -209,9 +209,6 @@ export default function Analytics() {
                     <p className="text-sm text-gray-500 dark:text-gray-400">Рекомендуемая цена</p>
                     <p className="font-semibold text-emerald-600 dark:text-emerald-400">{gap.suggested_price}₸</p>
                   </div>
-                  <button className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-400 rounded-xl text-sm font-medium transition-colors">
-                    Добавить товар
-                  </button>
                 </div>
               </motion.div>
             ))}

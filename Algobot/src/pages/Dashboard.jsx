@@ -13,7 +13,7 @@ import {
   RefreshCw,
   Award
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import StatsCard from '../components/StatsCard';
 import ComparisonTable from '../components/ComparisonTable';
 import { analyticsAPI, productsAPI } from '../services/api';
@@ -43,6 +43,16 @@ function HorseIcon(props) {
     </svg>
   );
 }
+
+const aggregatorColors = {
+  glovo: '#00A082',
+  yandex: '#FFCC00',
+  wolt: '#00C2E8',
+  magnum: '#EE1C25',
+  'airba fresh': '#78B833',
+  arbuz: '#FF7F00',
+  'yandex lavka': '#FFCC00',
+};
 
 export default function Dashboard() {
   const { t } = useLanguage();
@@ -162,118 +172,119 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard
-          title={t('totalProducts')}
+          title="Всего товаров"
           value={stats?.total_products || 0}
-          subtitle={t('inAssortment')}
+          subtitle="В ассортименте магазина"
           icon={Package}
           color="blue"
         />
         <StatsCard
-          title={t('top1Position')}
+          title="Позиция ТОП-1"
           value={stats?.products_at_top || 0}
-          subtitle={`${stats?.price_competitiveness || 0}% ${t('ofCatalog')}`}
+          subtitle={`${stats?.price_competitiveness || 0}% каталога`}
           icon={Trophy}
           color="emerald"
         />
         <StatsCard
-          title={t('needAction')}
-          value={stats?.products_need_action || 0}
-          subtitle={t('priceAdjustment')}
-          icon={AlertTriangle}
-          color="amber"
-        />
-        <StatsCard
-          title={t('missing')}
-          value={stats?.missing_products || 0}
-          subtitle={t('competitorsOnly')}
-          icon={ShoppingCart}
-          color="rose"
-        />
-      </div>
-
-      {/* Second Row Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          title={t('awaitingDecision')}
-          value={stats?.pending_recommendations || 0}
-          subtitle={t('awaitingActions')}
-          icon={Lightbulb}
-          color="purple"
-        />
-        <StatsCard
-          title={t('potentialSavings')}
-          value={`${stats?.potential_savings?.toLocaleString() || 0}₸`}
-          subtitle={t('ifApplyAll')}
-          icon={Award}
-          color="emerald"
-        />
-        <StatsCard
-          title={t('marketCoverage')}
+          title="Охват рынка"
           value={`${stats?.market_coverage || 0}%`}
-          subtitle={t('inStock')}
+          subtitle="Товары в наличии"
           icon={Target}
           color="blue"
         />
         <StatsCard
-          title={t('priceCompetitiveness')}
+          title="Конкурентность"
           value={`${stats?.price_competitiveness || 0}%`}
-          subtitle={t('inTop1')}
+          subtitle="Доля лучших цен"
           icon={TrendingUp}
           color="emerald"
         />
       </div>
 
+      {/* Detail Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <StatsCard
+          title="Ниже конкурентов"
+          value={stats?.products_at_top || 0}
+          subtitle="Лучшее предложение"
+          icon={Award}
+          color="emerald"
+        />
+        <StatsCard
+          title="Выше конкурентов"
+          value={stats?.products_need_action || 0}
+          subtitle="Потенциал оптимизации"
+          icon={AlertTriangle}
+          color="amber"
+        />
+        <StatsCard
+          title="Только у конкурентов"
+          value={stats?.missing_products || 0}
+          subtitle="Упущенный ассортимент"
+          icon={ShoppingCart}
+          color="rose"
+        />
+      </div>
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Pie Chart */}
-        <div
-          className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('statusDistribution')}</h3>
-          <div className="h-64">
+        {/* Market Positioning Pie Chart */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Позиционирование на рынке</h3>
+          <div className="h-64 flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={pieData}
+                  data={[
+                    { name: 'ТОП-1 (Лидер)', value: stats?.products_at_top || 0 },
+                    { name: 'Выше рынка', value: stats?.products_need_action || 0 },
+                    { name: 'Упущено', value: stats?.missing_products || 0 },
+                  ]}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
-                  outerRadius={100}
+                  outerRadius={90}
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
+                  <Cell fill="#10B981" />
+                  <Cell fill="#F59E0B" />
+                  <Cell fill="#F43F5E" />
                 </Pie>
-                <Tooltip />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                  itemStyle={{ color: '#fff' }}
+                />
+                <Legend iconType="circle" verticalAlign="middle" align="right" layout="vertical" />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex justify-center gap-6 mt-4">
-            {pieData.map((item) => (
-              <div key={item.name} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-sm text-gray-600 dark:text-gray-400">{item.name}: {item.value}</span>
-              </div>
-            ))}
-          </div>
         </div>
 
-        {/* Bar Chart */}
-        <div
-          className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('marketCoverageComparison')}</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} layout="vertical">
-                <XAxis type="number" domain={[0, 100]} />
-                <YAxis type="category" dataKey="name" width={60} />
-                <Tooltip formatter={(value) => `${value}%`} />
-                <Bar dataKey="coverage" fill="#10b981" radius={[0, 8, 8, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+        {/* Aggregator Coverage Bars */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Охват цен конкурентов</h3>
+          <div className="space-y-4">
+            {Object.entries(stats?.aggregator_stats || {}).map(([name, data]) => (
+              <div key={name} className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: aggregatorColors[name.toLowerCase()] || '#94a3b8' }} />
+                    <span className="capitalize">{name}</span>
+                  </span>
+                  <span className="text-gray-500 font-medium">{data.percent}% <span className="text-[10px] opacity-60">({data.count})</span></span>
+                </div>
+                <div className="h-2 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-700 ease-out"
+                    style={{
+                      width: `${data.percent}%`,
+                      backgroundColor: aggregatorColors[name.toLowerCase()] || '#94a3b8'
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

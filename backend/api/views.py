@@ -17,7 +17,7 @@ from .models import Aggregator, Category, Product, Price, Recommendation, PriceH
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 50
     page_size_query_param = 'page_size'
-    max_page_size = 200
+    max_page_size = 1000
 
 
 from .serializers import (
@@ -249,6 +249,19 @@ def dashboard_stats(request):
     market_coverage = (total_with_our_price / total_products * 100) if total_products > 0 else 0
     price_competitiveness = (products_at_top / total_with_our_price * 100) if total_with_our_price > 0 else 0
 
+    # Calculate aggregator stats
+    aggregator_counts = {}
+    aggregators = Aggregator.objects.all()
+    for agg in aggregators:
+        if not agg.is_our_company:
+            # Count products that have an available price from this aggregator
+            count = Price.objects.filter(price_filter, aggregator=agg).values('product').distinct().count()
+            percent = round((count / total_products * 100), 1) if total_products > 0 else 0
+            aggregator_counts[agg.name] = {
+                'count': count,
+                'percent': percent
+            }
+
     data = {
         'total_products': total_products,
         'products_at_top': products_at_top,
@@ -257,7 +270,8 @@ def dashboard_stats(request):
         'pending_recommendations': pending_recommendations,
         'potential_savings': potential_savings,
         'market_coverage': round(market_coverage, 1),
-        'price_competitiveness': round(price_competitiveness, 1)
+        'price_competitiveness': round(price_competitiveness, 1),
+        'aggregator_stats': aggregator_counts
     }
 
     return Response(data)

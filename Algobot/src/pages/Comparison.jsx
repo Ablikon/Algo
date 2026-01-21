@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Search, Filter, RefreshCw, Download, ChevronDown, X } from 'lucide-react';
 import ComparisonTable from '../components/ComparisonTable';
@@ -17,15 +17,49 @@ export default function Comparison() {
   const [filterPosition, setFilterPosition] = useState('all');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showNormalized, setShowNormalized] = useState(false);
+  const [showOnlyWithCompetitors, setShowOnlyWithCompetitors] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const dropdownRef = useRef(null);
 
-  useEffect(() => {
-    fetchData();
-  }, [refreshKey]); // Refetch when city changes
+  const fetchData = useCallback(async (isMounted = { current: true }) => {
+    setLoading(true);
+    try {
+      const params = {
+        page: 1,
+        page_size: 1000,
+        'category_ids[]': selectedCategories
+      };
+
+      const [productsRes, categoriesRes, treeRes] = await Promise.all([
+        productsAPI.getComparison(params),
+        categoriesAPI.getAll(),
+        categoriesAPI.getTree(),
+      ]);
+
+      if (isMounted.current) {
+        const productsData = productsRes.data.results || productsRes.data;
+        const metaData = productsRes.data.meta || {};
+
+        setProducts(productsData);
+        setCategories(categoriesRes.data);
+        setCategoryTree(treeRes.data);
+
+        if (metaData.aggregators) {
+          window.allAggregators = metaData.aggregators;
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      if (isMounted.current) setLoading(false);
+    }
+  }, [selectedCategories, refreshKey]);
 
   useEffect(() => {
-    fetchData();
-  }, [selectedCategories]); // refetch when selected categories change
+    const isMounted = { current: true };
+    fetchData(isMounted);
+    return () => { isMounted.current = false; };
+  }, [fetchData, refreshTrigger]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -36,39 +70,6 @@ export default function Comparison() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const params = {
-        page: 1,
-        page_size: 200,
-        'category_ids[]': selectedCategories
-      };
-
-      const [productsRes, categoriesRes, treeRes] = await Promise.all([
-        productsAPI.getComparison(params),
-        categoriesAPI.getAll(),
-        categoriesAPI.getTree(),
-      ]);
-
-      const productsData = productsRes.data.results || productsRes.data;
-      const metaData = productsRes.data.meta || {};
-
-      setProducts(productsData);
-      setCategories(categoriesRes.data);
-      setCategoryTree(treeRes.data);
-
-      if (metaData.aggregators) {
-        window.allAggregators = metaData.aggregators;
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      // Fallback logic
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getAllCategoryIds = (cats) => {
     const ids = [];
@@ -82,23 +83,45 @@ export default function Comparison() {
     return ids;
   };
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(product.category_id);
-    const matchesPosition =
-      filterPosition === 'all' ||
-      (filterPosition === 'top' && product.our_position === 1) ||
-      (filterPosition === 'need_action' && product.our_position !== null && product.our_position > 1) ||
-      (filterPosition === 'missing' && product.our_position === null);
-    return matchesSearch && matchesCategory && matchesPosition;
-  });
+  // Stage 1: Filter by search and categories
+  const baseFilteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(product.category_id);
 
-  const stats = {
-    total: filteredProducts.length,
-    top1: filteredProducts.filter((p) => p.our_position === 1).length,
-    needAction: filteredProducts.filter((p) => p.our_position !== null && p.our_position > 1).length,
-    missing: filteredProducts.filter((p) => p.our_position === null).length,
-  };
+      if (!matchesSearch || !matchesCategory) return false;
+
+      if (showOnlyWithCompetitors) {
+        // Check if there's at least one competitor price
+        const prices = product.prices || {};
+        const competitorPrices = Object.keys(prices).filter(agg => agg !== 'our_company' && prices[agg]?.price);
+        return competitorPrices.length > 0;
+      }
+
+      return true;
+    });
+  }, [products, searchTerm, selectedCategories, showOnlyWithCompetitors]);
+
+  // Calculate stats based on base filtered products (ignores current position filter)
+  const stats = useMemo(() => {
+    return {
+      total: baseFilteredProducts.length,
+      top1: baseFilteredProducts.filter((p) => p.our_position === 1).length,
+      needAction: baseFilteredProducts.filter((p) => p.our_position !== null && p.our_position > 1).length,
+      missing: baseFilteredProducts.filter((p) => p.our_position === null).length,
+    };
+  }, [baseFilteredProducts]);
+
+  // Stage 2: Filter by position for display
+  const filteredProducts = useMemo(() => {
+    return baseFilteredProducts.filter((product) => {
+      if (filterPosition === 'all') return true;
+      if (filterPosition === 'top') return product.our_position === 1;
+      if (filterPosition === 'need_action') return product.our_position !== null && product.our_position > 1;
+      if (filterPosition === 'missing') return product.our_position === null;
+      return true;
+    });
+  }, [baseFilteredProducts, filterPosition]);
 
   const getSelectedCategoryNames = () => {
     if (selectedCategories.length === 0) return 'Все категории';
@@ -113,16 +136,26 @@ export default function Comparison() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Сравнение цен</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Сравните цены на всех агрегаторах</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Мониторинг цен</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Детальный анализ цен конкурентов</p>
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={() => setShowOnlyWithCompetitors(!showOnlyWithCompetitors)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${showOnlyWithCompetitors
+              ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+              : 'bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200'
+              }`}
+          >
+            <Filter className={`w-4 h-4 ${showOnlyWithCompetitors ? 'animate-pulse' : ''}`} />
+            {showOnlyWithCompetitors ? 'Все товары' : 'Только с конкурентами'}
+          </button>
           <button className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-xl font-medium transition-colors">
             <Download className="w-4 h-4" />
             Экспорт
           </button>
           <button
-            onClick={fetchData}
+            onClick={() => setRefreshTrigger(prev => prev + 1)}
             className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -131,7 +164,7 @@ export default function Comparison() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters & Tabs */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-slate-700 mb-6">
         <div className="flex flex-wrap items-center gap-4">
           {/* Search */}
@@ -168,7 +201,7 @@ export default function Comparison() {
               </button>
             )}
 
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
               {showCategoryDropdown && (
                 <div className="absolute top-full left-0 mt-2 z-50 min-w-[280px]">
                   <CategoryTree
@@ -181,50 +214,76 @@ export default function Comparison() {
             </AnimatePresence>
           </div>
 
-          {/* Position Filter */}
-          <div className="flex gap-2">
+          {/* Position Filter Tabs */}
+          <div className="flex gap-2 p-1 bg-gray-50/50 dark:bg-slate-900/40 rounded-2xl border border-gray-100 dark:border-slate-700">
             {[
-              { value: 'all', label: 'Все', count: stats.total },
-              { value: 'top', label: 'ТОП 1', count: stats.top1 },
-              { value: 'need_action', label: 'Требуют действий', count: stats.needAction },
-              { value: 'missing', label: 'Отсутствуют', count: stats.missing },
-            ].map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setFilterPosition(f.value)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filterPosition === f.value
-                  ? 'bg-gray-900 dark:bg-emerald-600 text-white'
-                  : 'bg-gray-50 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-600 border border-gray-200 dark:border-slate-600'
-                  }`}
-              >
-                {f.label}
-                <span className={`ml-2 ${filterPosition === f.value ? 'opacity-80' : 'text-gray-400'}`}>
-                  ({f.count})
-                </span>
-              </button>
-            ))}
+              { value: 'all', label: 'Все товары', count: stats.total },
+              { value: 'top', label: 'ТОП-1', count: stats.top1 },
+              { value: 'need_action', label: 'Выше рынка', count: stats.needAction },
+              { value: 'missing', label: 'Пробелы', count: stats.missing },
+            ].map((f) => {
+              const showSkeleton = loading && products.length === 0;
+              return (
+                <button
+                  key={f.value}
+                  onClick={() => setFilterPosition(f.value)}
+                  disabled={showSkeleton}
+                  className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 whitespace-nowrap min-w-[120px] ${filterPosition === f.value
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200 dark:shadow-none'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm'
+                    }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    {f.label}
+                    {showSkeleton ? (
+                      <div className="w-6 h-4 skeleton opacity-50" />
+                    ) : (
+                      <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${filterPosition === f.value ? 'bg-white/20' : 'bg-gray-100 dark:bg-slate-800 text-gray-500'}`}>
+                        {f.count}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-slate-700 text-center">
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Всего товаров</p>
-        </div>
-        <div className="bg-emerald-50 dark:bg-emerald-900/30 rounded-xl p-4 border border-emerald-100 dark:border-emerald-800 text-center">
-          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.top1}</p>
-          <p className="text-sm text-emerald-600 dark:text-emerald-400">ТОП 1</p>
-        </div>
-        <div className="bg-amber-50 dark:bg-amber-900/30 rounded-xl p-4 border border-amber-100 dark:border-amber-800 text-center">
-          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.needAction}</p>
-          <p className="text-sm text-amber-600 dark:text-amber-400">Требуют действий</p>
-        </div>
-        <div className="bg-rose-50 dark:bg-rose-900/30 rounded-xl p-4 border border-rose-100 dark:border-rose-800 text-center">
-          <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{stats.missing}</p>
-          <p className="text-sm text-rose-600 dark:text-rose-400">Отсутствуют</p>
-        </div>
+      {/* Summary Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {[
+          { label: 'Всего в выборке', value: stats.total, color: 'emerald', key: 'total' },
+          { label: 'ТОП-1 Лидеры', value: stats.top1, color: 'blue', key: 'top1' },
+          { label: 'Цена выше рынка', value: stats.needAction, color: 'amber', key: 'action' },
+          { label: 'Пробелы ассортимента', value: stats.missing, color: 'rose', key: 'missing' },
+        ].map((card) => {
+          const isLoading = loading && products.length === 0;
+          return (
+            <div
+              key={card.key}
+              className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden group"
+            >
+              {isLoading ? (
+                <div className="space-y-3">
+                  <div className="w-20 h-8 skeleton" />
+                  <div className="w-32 h-4 skeleton opacity-60" />
+                </div>
+              ) : (
+                <>
+                  <p className={`text-2xl font-black text-gray-900 dark:text-white`}>
+                    {card.value.toLocaleString()}
+                  </p>
+                  <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mt-1">
+                    {card.label}
+                  </p>
+                  {/* Decorative background accent */}
+                  <div className={`absolute top-0 right-0 w-16 h-16 opacity-5 bg-${card.color}-500 rounded-bl-[40px] group-hover:scale-110 transition-transform`} />
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Table */}
