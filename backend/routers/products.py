@@ -138,6 +138,10 @@ async def get_products_comparison(
         competitor_prices = []
         
         for price in p.get("prices", []):
+            # Only include prices for the selected city if city is specified
+            if city and price.get("city") and price.get("city") != city:
+                continue
+
             agg_name = price.get("aggregator", "Unknown")
             is_ours = agg_name == OUR_COMPANY
             

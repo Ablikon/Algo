@@ -103,12 +103,15 @@ export default function ComparisonTable({ products, compact = false, showNormali
     }
 
     const priceContent = (
-      <div className="flex flex-col items-center">
-        <div className="flex items-center">
+      <div className="inline-flex flex-col items-center group/price cursor-pointer relative">
+        <div className="flex items-center justify-center">
           <span className={`text-sm ${textColor} ${fontWeight}`}>
             {formatPrice(price)}
           </span>
-          {badge}
+          {/* Icon positioned absolute to the right to avoid shifting the centered price */}
+          <div className="absolute left-full ml-1.5 top-1/2 -translate-y-1/2">
+            <ExternalLink className="w-3.5 h-3.5 text-blue-500 opacity-0 group-hover/price:opacity-100 transition-all" />
+          </div>
         </div>
 
         {showNormalized && normalizedPrice && (
@@ -119,22 +122,18 @@ export default function ComparisonTable({ products, compact = false, showNormali
       </div>
     );
 
-    if (hasUrl) {
-      return (
-        <a
-          href={hasUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col items-center hover:opacity-70 transition-opacity group"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {priceContent}
-          <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-blue-400 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </a>
-      );
-    }
-
-    return <div className="text-center">{priceContent}</div>;
+    return (
+      <a
+        href="https://google.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-block py-2 px-4 hover:bg-blue-50/50 rounded-xl transition-all"
+        onClick={(e) => e.stopPropagation()}
+        title={`Перейти на сайт (${aggregator})`}
+      >
+        {priceContent}
+      </a>
+    );
   };
 
   const displayProducts = compact ? products.slice(0, 5) : products;
@@ -210,19 +209,7 @@ export default function ComparisonTable({ products, compact = false, showNormali
                 <tr key={product.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="py-3 px-6 align-middle">
                     <div className="font-medium text-gray-900 text-sm line-clamp-2" title={product.name}>
-                      {(() => {
-                        const productUrl = Object.values(product.prices || {}).find(p => p.is_our_company)?.external_url
-                          || Object.values(product.prices || {}).find(p => p.external_url)?.external_url;
-
-                        return productUrl ? (
-                          <a href={productUrl} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 flex items-center gap-1 group">
-                            {product.name}
-                            <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </a>
-                        ) : (
-                          product.name
-                        );
-                      })()}
+                      {product.name}
                     </div>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
@@ -249,7 +236,7 @@ export default function ComparisonTable({ products, compact = false, showNormali
                   </td>
 
                   {sortedAggregators.map((agg, index) => (
-                    <td key={agg} className="py-3 px-2 align-middle">
+                    <td key={agg} className="py-3 px-2 align-middle text-center">
                       {getPriceCell(prices[agg], agg, minPrice, product.normalized_prices, showNormalized)}
                     </td>
                   ))}
