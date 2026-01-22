@@ -131,15 +131,15 @@ export default function Analytics() {
                 <p className="text-sm text-gray-500">Товары, которые есть у конкурентов, но нет у вас</p>
               </div>
             </div>
-            <div className="px-4 py-2 bg-cyan-50 dark:bg-cyan-900/20 rounded-xl">
-              <p className="text-xs text-cyan-700 dark:text-cyan-400 font-semibold">ТОП-5 по популярности</p>
+            <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">ТОП-5 по популярности</p>
             </div>
           </div>
 
-          <div className="mb-6 p-4 bg-cyan-50/50 dark:bg-cyan-900/10 rounded-2xl border border-cyan-100 dark:border-cyan-900/30">
+          <div className="mb-6 p-4 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-4 h-4 text-cyan-500 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-cyan-700 dark:text-cyan-400 leading-relaxed">
+              <AlertCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed">
                 <span className="font-bold">Анализ пробелов:</span> Здесь собраны товары, которые представлены у большинства ваших конкурентов.
                 Добавление этих позиций поможет увеличить ваш охват и привлечь новых покупателей.
               </p>
@@ -203,23 +203,23 @@ export default function Analytics() {
         >
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/40 rounded-xl flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">Пересечение ассортимента</h3>
                 <p className="text-sm text-gray-500">Сколько ваших товаров есть у каждого конкурента</p>
               </div>
             </div>
-            <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-              <p className="text-xs text-blue-700 dark:text-blue-400 font-semibold">Из {totalOurProducts} товаров</p>
+            <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">Из {totalOurProducts} товаров</p>
             </div>
           </div>
 
-          <div className="mb-4 p-4 bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30">
+          <div className="mb-4 p-4 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+              <AlertCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed">
                 <span className="font-bold">Что означает график:</span> показывает, какая часть вашего ассортимента дублируется у конкурентов.
                 Чем больше пересечение — тем сильнее конкуренция за одних и тех же покупателей.
               </p>
