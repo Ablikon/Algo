@@ -303,16 +303,7 @@ export default function DatabaseView() {
             <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">{t('schema')}</h4>
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
-                <span>PostgreSQL</span>
-                <span className="text-emerald-600 dark:text-emerald-400">v17</span>
-              </div>
-              <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
-                <span>{t('tables')}</span>
-                <span>{tables.length}</span>
-              </div>
-              <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
-                <span>{t('totalRecords')}</span>
-                <span>{tables.reduce((acc, t) => acc + t.count, 0)}</span>
+                <span>MongoDB</span>
               </div>
             </div>
           </div>

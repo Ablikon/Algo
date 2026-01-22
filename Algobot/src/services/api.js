@@ -68,6 +68,10 @@ export const importAPI = {
   // JSON import from Data folder
   getJsonInfo: () => api.get('/import/json/info/'),
   importFromJson: (data) => api.post('/import/json/', data),
+  // Upload JSON file
+  uploadJson: (formData) => api.post('/import/upload-json/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
   // Run product matching
   runMatching: (params = {}) => api.post('/import/run-matching/', null, { params }),
   getMatchingProgress: () => api.get('/import/matching-progress'),

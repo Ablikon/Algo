@@ -1,14 +1,16 @@
 """
 Data Import Router
 
-Handles importing products from JSON files in the Data folder.
+Handles importing products from JSON files.
 Supports all 6 aggregator formats: Arbuz, Glovo, Wolt, Yandex Lavka, Magnum, Airba.
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File, Form
 from pathlib import Path
 import os
 import logging
+import json
+import tempfile
 
 from database import get_db
 from models import ImportRequest, ImportResult
@@ -64,29 +66,200 @@ async def get_json_import_info():
 async def import_from_json(request: ImportRequest, background_tasks: BackgroundTasks):
     """
     Import products from JSON files.
-    
+
     Imports all products from all aggregators' JSON files into MongoDB.
     Products are parsed, normalized, and stored with embedded prices.
     """
     db = get_db()
     importer = DataImporter(db, DATA_PATH)
-    
+
     try:
         result = await importer.import_all(
             aggregators=request.aggregators,
             limit_per_aggregator=request.limit_per_aggregator,
             dry_run=request.dry_run
         )
-        
+
         # Update category counts in background
         if not request.dry_run:
             background_tasks.add_task(update_category_counts, db)
-        
+
         return result
-    
+
     except Exception as e:
         logger.error(f"Import error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/import/upload-json/")
+async def upload_json_file(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    dry_run: str = Form("false")
+):
+    """
+    Upload and import a JSON file.
+
+    Accepts JSON files in the same format as files in the Data folder.
+    The aggregator name is extracted from the filename or data.
+    """
+    if not file.filename.endswith('.json'):
+        raise HTTPException(status_code=400, detail="Only JSON files are accepted")
+
+    db = get_db()
+
+    try:
+        # Read file content
+        content = await file.read()
+        data = json.loads(content.decode('utf-8'))
+
+        if not isinstance(data, list):
+            data = [data]
+
+        # Detect aggregator from filename or data
+        aggregator_name = _detect_aggregator(file.filename, data)
+
+        # Parse dry_run from form data
+        is_dry_run = dry_run.lower() in ('true', '1', 'yes')
+
+        # Import using DataImporter logic
+        importer = DataImporter(db, DATA_PATH)
+
+        # Ensure aggregators exist
+        await importer._ensure_aggregators()
+
+        # Process the data
+        result = await _process_uploaded_json(
+            db=db,
+            importer=importer,
+            data=data,
+            aggregator_name=aggregator_name,
+            dry_run=is_dry_run
+        )
+
+        # Update category counts in background
+        if not is_dry_run:
+            background_tasks.add_task(update_category_counts, db)
+
+        return result
+
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid JSON file: {str(e)}")
+    except Exception as e:
+        logger.error(f"Upload import error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _detect_aggregator(filename: str, data: list) -> str:
+    """Detect aggregator name from filename or data content"""
+    filename_lower = filename.lower()
+
+    # Check filename patterns
+    if 'glovo' in filename_lower:
+        return 'Glovo'
+    elif 'arbuz' in filename_lower:
+        return 'Arbuz.kz'
+    elif 'wolt' in filename_lower:
+        return 'Wolt'
+    elif 'yandex' in filename_lower or 'lavka' in filename_lower:
+        return 'Yandex Lavka'
+    elif 'magnum' in filename_lower:
+        return 'Magnum'
+    elif 'airba' in filename_lower:
+        return 'Airba Fresh'
+
+    # Check data content
+    if data and len(data) > 0:
+        first_item = data[0]
+        mercant = first_item.get('mercant_name') or first_item.get('mercant_id') or ''
+        mercant_lower = mercant.lower()
+
+        if 'glovo' in mercant_lower:
+            return 'Glovo'
+        elif 'arbuz' in mercant_lower:
+            return 'Arbuz.kz'
+        elif 'wolt' in mercant_lower:
+            return 'Wolt'
+        elif 'yandex' in mercant_lower or 'lavka' in mercant_lower:
+            return 'Yandex Lavka'
+        elif 'magnum' in mercant_lower:
+            return 'Magnum'
+        elif 'airba' in mercant_lower:
+            return 'Airba Fresh'
+
+    # Default to filename without extension
+    return filename.replace('.json', '').replace('_', ' ').title()
+
+
+async def _process_uploaded_json(
+    db,
+    importer: DataImporter,
+    data: list,
+    aggregator_name: str,
+    dry_run: bool
+) -> dict:
+    """Process uploaded JSON data"""
+    from datetime import datetime
+
+    stats = {
+        'total_read': 0,
+        'total_imported': 0,
+        'errors': 0,
+        'by_aggregator': {aggregator_name: 0},
+        'by_category': {}
+    }
+    error_messages = []
+
+    batch = []
+    batch_size = 500
+
+    for item in data:
+        stats['total_read'] += 1
+
+        # Parse product using importer's method
+        parsed = importer._parse_product(item, aggregator_name.lower())
+
+        if not parsed.get('name'):
+            stats['errors'] += 1
+            continue
+
+        # Track categories
+        category = parsed.get('category') or 'Без категории'
+        if category not in stats['by_category']:
+            stats['by_category'][category] = 0
+        stats['by_category'][category] += 1
+
+        if not dry_run:
+            # Determine city from data
+            city = parsed.get('city') or 'almaty'
+
+            batch.append({
+                'parsed': parsed,
+                'aggregator': aggregator_name,
+                'city': city
+            })
+
+            if len(batch) >= batch_size:
+                await importer._process_batch(batch)
+                batch = []
+
+        stats['by_aggregator'][aggregator_name] += 1
+        stats['total_imported'] += 1
+
+    # Process remaining batch
+    if batch and not dry_run:
+        await importer._process_batch(batch)
+
+    return {
+        'status': 'completed' if not error_messages else 'completed_with_errors',
+        'total_read': stats['total_read'],
+        'total_imported': stats['total_imported'],
+        'errors': stats['errors'],
+        'by_aggregator': stats['by_aggregator'],
+        'by_category': stats['by_category'],
+        'error_messages': error_messages[:20]
+    }
 
 
 @router.post("/import/run-matching/")

@@ -1,63 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileSpreadsheet, Download, Check, X, AlertCircle, Loader2, Database, FileJson, Settings2, Plus } from 'lucide-react';
-import { importAPI, exportAPI, categoriesResetAPI } from '../services/api';
-
-const importTypes = [
-  { id: 'products', name: 'Товары', description: 'Импорт товаров с категориями, брендами и весом', icon: FileSpreadsheet },
-  { id: 'prices', name: 'Цены', description: 'Импорт цен для товаров по агрегаторам', icon: FileSpreadsheet },
-  { id: 'links', name: 'Ссылки', description: 'Импорт ссылок на товары в агрегаторах', icon: FileSpreadsheet },
-  { id: 'categories', name: 'Категории', description: 'Импорт структуры категорий (родитель/дочерняя)', icon: FileSpreadsheet },
-  { id: 'json', name: 'JSON из Data', description: 'Импорт из JSON файлов агрегаторов', icon: FileJson },
-];
+import { Upload, Check, X, AlertCircle, Loader2, Database, FileJson } from 'lucide-react';
+import { importAPI } from '../services/api';
 
 export default function BulkImport({ onImportComplete }) {
-  const [selectedType, setSelectedType] = useState('products');
-  const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState(null);
   const [dragActive, setDragActive] = useState(false);
-  const fileInputRef = useRef(null);
 
-  // JSON import state
-  const [jsonInfo, setJsonInfo] = useState(null);
-  const [jsonLoading, setJsonLoading] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState([]);
-  const [selectedAggregators, setSelectedAggregators] = useState([]);
-  const [importLimit, setImportLimit] = useState(100);
+  // JSON file upload state
+  const [jsonFile, setJsonFile] = useState(null);
   const [dryRun, setDryRun] = useState(false);
-
-  // Custom JSON file and category state
-  const [customJsonFiles, setCustomJsonFiles] = useState([]);
-  const [customCategory, setCustomCategory] = useState('');
-  const [customCategories, setCustomCategories] = useState([]);
-  const jsonFileInputRef = useRef(null);
-
-  // Load JSON info when switching to JSON type
-  useEffect(() => {
-    if (selectedType === 'json' && !jsonInfo) {
-      loadJsonInfo();
-    }
-  }, [selectedType]);
-
-  const loadJsonInfo = async () => {
-    setJsonLoading(true);
-    try {
-      const response = await importAPI.getJsonInfo();
-      setJsonInfo(response.data);
-      // Select all categories and aggregators by default
-      if (response.data.categories) {
-        setSelectedCategories(response.data.categories.map(c => c.slug));
-      }
-      if (response.data.files) {
-        setSelectedAggregators(response.data.files.filter(f => f.exists).map(f => f.aggregator));
-      }
-    } catch (error) {
-      console.error('Error loading JSON info:', error);
-    } finally {
-      setJsonLoading(false);
-    }
-  };
+  const fileInputRef = useRef(null);
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -74,460 +28,164 @@ export default function BulkImport({ onImportComplete }) {
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
-      setResult(null);
+      const file = e.dataTransfer.files[0];
+      if (file.name.endsWith('.json')) {
+        setJsonFile(file);
+        setResult(null);
+      }
     }
   };
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      setJsonFile(e.target.files[0]);
       setResult(null);
     }
   };
 
   const handleUpload = async () => {
-    if (selectedType === 'json') {
-      await handleJsonImport();
-      return;
-    }
-
-    if (!file) return;
+    if (!jsonFile) return;
 
     setUploading(true);
     setResult(null);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      let response;
-      switch (selectedType) {
-        case 'products':
-          response = await importAPI.uploadProducts(formData);
-          break;
-        case 'prices':
-          response = await importAPI.uploadPrices(formData);
-          break;
-        case 'links':
-          response = await importAPI.uploadLinks(formData);
-          break;
-        case 'categories':
-          response = await importAPI.uploadCategories(formData);
-          break;
-        default:
-          throw new Error('Unknown import type');
-      }
-      setResult(response.data);
-      if (onImportComplete) onImportComplete();
-    } catch (error) {
-      setResult({
-        status: 'failed',
-        error: error.response?.data?.error || error.message,
-      });
-    } finally {
-      setUploading(false);
-    }
-  };
+      const formData = new FormData();
+      formData.append('file', jsonFile);
+      formData.append('dry_run', dryRun);
 
-  const handleJsonImport = async () => {
-    setUploading(true);
-    setResult(null);
-
-    try {
-      let response;
-
-      // If custom JSON files are uploaded, send them
-      if (customJsonFiles.length > 0) {
-        const formData = new FormData();
-        customJsonFiles.forEach((f, i) => {
-          formData.append(`files`, f);
-        });
-        formData.append('categories', JSON.stringify([...selectedCategories, ...customCategories]));
-        formData.append('limit', importLimit);
-        formData.append('dry_run', dryRun);
-
-        response = await importAPI.uploadCustomJson(formData);
-      } else {
-        // Use existing Data folder import
-        response = await importAPI.importFromJson({
-          categories: [...selectedCategories, ...customCategories],
-          aggregators: selectedAggregators,
-          limit: importLimit,
-          dry_run: dryRun,
-        });
-      }
+      const response = await importAPI.uploadJson(formData);
 
       setResult({
         status: response.data.status === 'completed' ? 'completed' : 'completed_with_errors',
-        total: response.data.stats?.total_read || 0,
+        total: response.data.total_read || 0,
         success: response.data.total_imported || 0,
-        errors: response.data.errors?.length || 0,
-        categories: response.data.categories,
-        aggregators: response.data.aggregators,
-        error_details: response.data.errors,
+        errors: response.data.errors || 0,
+        by_aggregator: response.data.by_aggregator,
+        by_category: response.data.by_category,
+        error_details: response.data.error_messages,
       });
 
       if (!dryRun && onImportComplete) onImportComplete();
     } catch (error) {
       setResult({
         status: 'failed',
-        error: error.response?.data?.error || error.message,
+        error: error.response?.data?.detail || error.response?.data?.error || error.message,
       });
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDownloadTemplate = () => {
-    if (selectedType === 'json') return;
-    window.open(importAPI.downloadTemplate(selectedType), '_blank');
-  };
-
-  const handleExport = () => {
-    window.open(exportAPI.downloadProducts({}), '_blank');
-  };
-
-  const handleResetCategories = async () => {
-    if (!confirm('Это удалит все существующие категории и создаст структуру Яйца/Газировки/Шоколадки. Продолжить?')) return;
-
-    try {
-      await categoriesResetAPI.reset();
-      if (onImportComplete) onImportComplete();
-      alert('Категории успешно сброшены!');
-    } catch (error) {
-      alert('Ошибка: ' + (error.response?.data?.error || error.message));
-    }
-  };
-
   const resetUpload = () => {
-    setFile(null);
+    setJsonFile(null);
     setResult(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const toggleCategory = (slug) => {
-    setSelectedCategories(prev =>
-      prev.includes(slug) ? prev.filter(c => c !== slug) : [...prev, slug]
-    );
-  };
-
-  const toggleAggregator = (agg) => {
-    setSelectedAggregators(prev =>
-      prev.includes(agg) ? prev.filter(a => a !== agg) : [...prev, agg]
-    );
-  };
-
-  const handleJsonFileChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setCustomJsonFiles(Array.from(e.target.files));
-    }
-  };
-
-  const removeCustomJsonFile = (index) => {
-    setCustomJsonFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const addCustomCategory = () => {
-    if (customCategory.trim() && !customCategories.includes(customCategory.trim())) {
-      setCustomCategories(prev => [...prev, customCategory.trim()]);
-      setCustomCategory('');
-    }
-  };
-
-  const removeCustomCategory = (cat) => {
-    setCustomCategories(prev => prev.filter(c => c !== cat));
-  };
-
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Импорт данных</h3>
-        <div className="flex gap-2">
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Экспорт CSV
-          </button>
-          <button
-            onClick={handleResetCategories}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"
-          >
-            <Settings2 className="w-4 h-4" />
-            Сбросить категории
-          </button>
-        </div>
-      </div>
-
-      {/* Import Type Selection */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {importTypes.map((type) => (
-          <button
-            key={type.id}
-            onClick={() => {
-              setSelectedType(type.id);
-              resetUpload();
-            }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedType === type.id
-              ? 'bg-emerald-100 text-emerald-700'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-          >
-            <type.icon className="w-4 h-4" />
-            {type.name}
-          </button>
-        ))}
       </div>
 
       {/* Description */}
       <p className="text-sm text-gray-500 mb-4">
-        {importTypes.find(t => t.id === selectedType)?.description}
+        Импорт товаров из JSON файлов
       </p>
 
-      {/* JSON Import Settings */}
-      {selectedType === 'json' ? (
-        <div className="space-y-4 mb-6">
-          {jsonLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+      {/* Drop Zone */}
+      <div
+        className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+          dragActive
+            ? 'border-emerald-500 bg-emerald-50'
+            : jsonFile
+              ? 'border-emerald-300 bg-emerald-50'
+              : 'border-gray-200 hover:border-gray-300'
+        }`}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+
+        {jsonFile ? (
+          <div className="flex items-center justify-center gap-3">
+            <FileJson className="w-8 h-8 text-emerald-500" />
+            <div className="text-left">
+              <p className="font-medium text-gray-900">{jsonFile.name}</p>
+              <p className="text-sm text-gray-500">
+                {(jsonFile.size / 1024 / 1024).toFixed(2)} MB
+              </p>
             </div>
-          ) : jsonInfo ? (
-            <>
-              {/* Categories */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Категории</label>
-                <div className="flex flex-wrap gap-2">
-                  {jsonInfo.categories?.map((cat) => (
-                    <button
-                      key={cat.slug}
-                      onClick={() => toggleCategory(cat.slug)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedCategories.includes(cat.slug)
-                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                        : 'bg-gray-100 text-gray-600 border border-transparent hover:bg-gray-200'
-                        }`}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Aggregators */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Агрегаторы</label>
-                <div className="flex flex-wrap gap-2">
-                  {jsonInfo.files?.filter(f => f.exists).map((file) => (
-                    <button
-                      key={file.aggregator}
-                      onClick={() => toggleAggregator(file.aggregator)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedAggregators.includes(file.aggregator)
-                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                        : 'bg-gray-100 text-gray-600 border border-transparent hover:bg-gray-200'
-                        }`}
-                    >
-                      {file.aggregator} ({file.size_mb} MB)
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Custom Category Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Добавить свою категорию</label>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={customCategory}
-                    onChange={(e) => setCustomCategory(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && addCustomCategory()}
-                    placeholder="Название категории..."
-                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  />
-                  <button
-                    onClick={addCustomCategory}
-                    className="px-3 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-                {customCategories.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {customCategories.map((cat) => (
-                      <span key={cat} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-purple-100 text-purple-700 border border-purple-300">
-                        {cat}
-                        <button onClick={() => removeCustomCategory(cat)} className="ml-1 hover:text-purple-900">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Custom JSON File Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Загрузить свои JSON файлы</label>
-                <div
-                  className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-gray-300 transition-colors cursor-pointer"
-                  onClick={() => jsonFileInputRef.current?.click()}
-                >
-                  <input
-                    ref={jsonFileInputRef}
-                    type="file"
-                    accept=".json"
-                    multiple
-                    onChange={handleJsonFileChange}
-                    className="hidden"
-                  />
-                  <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">Нажмите для выбора JSON файлов</p>
-                  <p className="text-xs text-gray-400 mt-1">Формат как у файлов в папке data</p>
-                </div>
-                {customJsonFiles.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {customJsonFiles.map((f, i) => (
-                      <div key={i} className="flex items-center justify-between px-3 py-2 bg-blue-50 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <FileJson className="w-4 h-4 text-blue-500" />
-                          <span className="text-sm text-gray-700">{f.name}</span>
-                          <span className="text-xs text-gray-400">({(f.size / 1024 / 1024).toFixed(2)} MB)</span>
-                        </div>
-                        <button onClick={() => removeCustomJsonFile(i)} className="text-gray-400 hover:text-gray-600">
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Limit */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Лимит товаров на категорию: {importLimit}
-                </label>
-                <input
-                  type="range"
-                  min="10"
-                  max="1000"
-                  step="10"
-                  value={importLimit}
-                  onChange={(e) => setImportLimit(Number(e.target.value))}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                />
-                <div className="flex justify-between text-xs text-gray-400 mt-1">
-                  <span>10</span>
-                  <span>500</span>
-                  <span>1000</span>
-                </div>
-              </div>
-
-              {/* Dry Run */}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={dryRun}
-                  onChange={(e) => setDryRun(e.target.checked)}
-                  className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
-                />
-                <span className="text-sm text-gray-600">Тестовый запуск (без сохранения)</span>
-              </label>
-            </>
-          ) : (
-            <p className="text-sm text-gray-500">Не удалось загрузить информацию о файлах</p>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Download Template */}
-          <button
-            onClick={handleDownloadTemplate}
-            className="flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700 mb-6"
-          >
-            <Download className="w-4 h-4" />
-            Скачать шаблон CSV
-          </button>
-
-          {/* Drop Zone */}
-          <div
-            className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-colors ${dragActive
-              ? 'border-emerald-500 bg-emerald-50'
-              : file
-                ? 'border-emerald-300 bg-emerald-50'
-                : 'border-gray-200 hover:border-gray-300'
-              }`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              onChange={handleFileChange}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            />
-
-            {file ? (
-              <div className="flex items-center justify-center gap-3">
-                <FileSpreadsheet className="w-8 h-8 text-emerald-500" />
-                <div className="text-left">
-                  <p className="font-medium text-gray-900">{file.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {(file.size / 1024).toFixed(1)} KB
-                  </p>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    resetUpload();
-                  }}
-                  className="p-1 hover:bg-gray-200 rounded-full"
-                >
-                  <X className="w-4 h-4 text-gray-500" />
-                </button>
-              </div>
-            ) : (
-              <>
-                <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-600 mb-1">
-                  Перетащите файл сюда или нажмите для выбора
-                </p>
-                <p className="text-sm text-gray-400">CSV или Excel (.xlsx)</p>
-              </>
-            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                resetUpload();
+              }}
+              className="p-1 hover:bg-gray-200 rounded-full"
+            >
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
           </div>
-        </>
+        ) : (
+          <>
+            <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-600 mb-1">
+              Перетащите файл сюда или нажмите для выбора
+            </p>
+            <p className="text-sm text-gray-400">JSON файл</p>
+          </>
+        )}
+      </div>
+
+      {/* Options */}
+      {jsonFile && !result && (
+        <div className="mt-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={dryRun}
+              onChange={(e) => setDryRun(e.target.checked)}
+              className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+            />
+            <span className="text-sm text-gray-600">Тестовый запуск (без сохранения)</span>
+          </label>
+        </div>
       )}
 
       {/* Upload Button */}
-      {((selectedType === 'json' && selectedCategories.length > 0 && selectedAggregators.length > 0) ||
-        (selectedType !== 'json' && file)) && !result && (
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            onClick={handleUpload}
-            disabled={uploading}
-            className="w-full mt-4 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white py-3 rounded-xl font-medium transition-colors"
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                {dryRun ? 'Анализ...' : 'Импорт...'}
-              </>
-            ) : (
-              <>
-                {selectedType === 'json' ? <Database className="w-5 h-5" /> : <Upload className="w-5 h-5" />}
-                {dryRun ? 'Проверить' : 'Импортировать'}
-              </>
-            )}
-          </motion.button>
-        )}
+      {jsonFile && !result && (
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={handleUpload}
+          disabled={uploading}
+          className="w-full mt-4 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white py-3 rounded-xl font-medium transition-colors"
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              {dryRun ? 'Анализ...' : 'Импорт...'}
+            </>
+          ) : (
+            <>
+              <Database className="w-5 h-5" />
+              {dryRun ? 'Проверить' : 'Импортировать'}
+            </>
+          )}
+        </motion.button>
+      )}
 
       {/* Result */}
       <AnimatePresence>
@@ -536,10 +194,11 @@ export default function BulkImport({ onImportComplete }) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className={`mt-4 p-4 rounded-xl ${result.status === 'completed' || result.status === 'completed_with_errors'
-              ? 'bg-emerald-50 border border-emerald-200'
-              : 'bg-rose-50 border border-rose-200'
-              }`}
+            className={`mt-4 p-4 rounded-xl ${
+              result.status === 'completed' || result.status === 'completed_with_errors'
+                ? 'bg-emerald-50 border border-emerald-200'
+                : 'bg-rose-50 border border-rose-200'
+            }`}
           >
             {result.status === 'completed' || result.status === 'completed_with_errors' ? (
               <>
@@ -562,27 +221,46 @@ export default function BulkImport({ onImportComplete }) {
                   </div>
                 </div>
 
-                {/* Show categories breakdown for JSON import */}
-                {result.categories && Object.keys(result.categories).length > 0 && (
+                {/* Show aggregator breakdown */}
+                {result.by_aggregator && Object.keys(result.by_aggregator).length > 0 && (
                   <div className="mt-3 pt-3 border-t border-emerald-200">
-                    <p className="text-sm text-gray-600 mb-2">По категориям:</p>
+                    <p className="text-sm text-gray-600 mb-2">По агрегаторам:</p>
                     <div className="flex flex-wrap gap-2">
-                      {Object.entries(result.categories).map(([name, data]) => (
-                        <span key={name} className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
-                          {name}: {data.count}
+                      {Object.entries(result.by_aggregator).map(([name, count]) => (
+                        <span key={name} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                          {name}: {count}
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
 
+                {/* Show categories breakdown */}
+                {result.by_category && Object.keys(result.by_category).length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-emerald-200">
+                    <p className="text-sm text-gray-600 mb-2">По категориям:</p>
+                    <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+                      {Object.entries(result.by_category).slice(0, 10).map(([name, count]) => (
+                        <span key={name} className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
+                          {name}: {count}
+                        </span>
+                      ))}
+                      {Object.keys(result.by_category).length > 10 && (
+                        <span className="text-xs text-gray-500">
+                          +{Object.keys(result.by_category).length - 10} еще
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {result.error_details && result.error_details.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-emerald-200">
-                    <p className="text-sm text-gray-600 mb-2">Первые ошибки:</p>
+                    <p className="text-sm text-gray-600 mb-2">Ошибки:</p>
                     <div className="space-y-1 max-h-32 overflow-y-auto">
                       {result.error_details.slice(0, 5).map((err, i) => (
                         <p key={i} className="text-xs text-rose-600">
-                          {typeof err === 'string' ? err : `Строка ${err.row}: ${err.error}`}
+                          {typeof err === 'string' ? err : JSON.stringify(err)}
                         </p>
                       ))}
                     </div>
@@ -600,7 +278,7 @@ export default function BulkImport({ onImportComplete }) {
               onClick={resetUpload}
               className="mt-4 w-full py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
             >
-              {selectedType === 'json' ? 'Попробовать снова' : 'Загрузить другой файл'}
+              Загрузить другой файл
             </button>
           </motion.div>
         )}
