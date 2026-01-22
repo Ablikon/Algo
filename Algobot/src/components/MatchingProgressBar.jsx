@@ -7,35 +7,41 @@ const MatchingProgressBar = () => {
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {
-        let interval;
+        let timer;
         const checkStatus = async () => {
             try {
                 const response = await importAPI.getMatchingProgress();
                 const data = response.data;
 
-                if (data && (data.is_running || data.processed > 0)) {
+                if (data) {
                     setStatus(data);
-                    setVisible(true);
 
-                    // Hide after completion (give it 10 seconds)
-                    if (!data.is_running && data.processed >= data.total && data.total > 0) {
-                        setTimeout(() => setVisible(false), 10000);
+                    // Show if running OR if we have processed something recently
+                    if (data.is_running || (data.processed > 0 && data.processed < data.total)) {
+                        setVisible(true);
                     }
-                } else {
-                    setVisible(false);
+                    // If finished, wait 10 seconds before hiding
+                    else if (!data.is_running && data.processed >= data.total && data.total > 0) {
+                        setVisible(true);
+                        if (!timer) {
+                            timer = setTimeout(() => setVisible(false), 10000);
+                        }
+                    } else {
+                        setVisible(false);
+                    }
                 }
             } catch (err) {
                 console.error("Error polling matching status:", err);
             }
         };
 
-        // Initial check
         checkStatus();
+        const interval = setInterval(checkStatus, 2000);
 
-        // Poll every 2 seconds
-        interval = setInterval(checkStatus, 2000);
-
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+            if (timer) clearTimeout(timer);
+        };
     }, []);
 
     if (!visible || !status) return null;

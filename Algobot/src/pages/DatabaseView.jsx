@@ -14,7 +14,6 @@ export default function DatabaseView() {
     aggregators: [],
     categories: [],
     products: [],
-    recommendations: [],
     productsTotal: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -27,19 +26,17 @@ export default function DatabaseView() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [aggregatorsRes, categoriesRes, productsRes, recommendationsRes] = await Promise.all([
+      const [aggregatorsRes, categoriesRes, productsRes] = await Promise.all([
         aggregatorsAPI.getAll(),
         categoriesAPI.getAll(),
         productsAPI.getComparison({ page: 1, page_size: 100 }),
-        recommendationsAPI.getAll(),
       ]);
       const productsList = productsRes.data.results || productsRes.data;
-      const productsTotal = productsRes.data.meta?.total_count ?? productsList.length;
+      const productsTotal = productsRes.data.count || productsList.length;
       setData({
         aggregators: aggregatorsRes.data,
         categories: categoriesRes.data,
         products: productsList,
-        recommendations: recommendationsRes.data,
         productsTotal,
       });
     } catch (error) {
@@ -65,7 +62,6 @@ export default function DatabaseView() {
     { id: 'aggregators', name: t('aggregators'), count: data.aggregators.length, color: '#10b981' },
     { id: 'categories', name: t('categories'), count: data.categories.length, color: '#3b82f6' },
     { id: 'products', name: t('products'), count: data.productsTotal || data.products.length, color: '#8b5cf6' },
-    { id: 'recommendations', name: t('recommendations'), count: data.recommendations.length, color: '#f59e0b' },
   ];
 
   const renderTableContent = () => {
@@ -204,78 +200,6 @@ export default function DatabaseView() {
                         {t('no')}
                       </span>
                     )}
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        );
-      case 'recommendations':
-        return (
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-slate-700/50 border-b border-gray-200 dark:border-slate-700">
-                <th className="py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300">ID</th>
-                <th className="py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300">{t('product')}</th>
-                <th className="py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300">{t('action')}</th>
-                <th className="py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300">{t('current')}</th>
-                <th className="py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300">{t('recommended')}</th>
-                <th className="py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300">{t('priority')}</th>
-                <th className="py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300">{t('status')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-              {data.recommendations.map((item, index) => (
-                <motion.tr
-                  key={item.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: index * 0.02 }}
-                  className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors"
-                >
-                  <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">{item.id}</td>
-                  <td className="py-3 px-4 font-medium text-gray-900 dark:text-gray-200">{item.product_name}</td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${item.action_type === 'LOWER_PRICE'
-                      ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                      : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                      }`}>
-                      {item.action_type === 'LOWER_PRICE' ? t('lowerPrice') : t('addProduct')}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
-                    {item.current_price ? `${item.current_price}₸` : '—'}
-                  </td>
-                  <td className="py-3 px-4 text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                    {item.recommended_price}₸
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.priority === 'HIGH'
-                      ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400'
-                      : item.priority === 'MEDIUM'
-                        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                        : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                      }`}>
-                      {item.priority === 'HIGH'
-                        ? t('high')
-                        : item.priority === 'MEDIUM'
-                          ? t('medium')
-                          : t('low')}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${item.status === 'APPLIED'
-                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                      : item.status === 'REJECTED'
-                        ? 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400'
-                        : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                      }`}>
-                      {item.status === 'APPLIED'
-                        ? t('applied')
-                        : item.status === 'REJECTED'
-                          ? t('rejected')
-                          : t('pending')}
-                    </span>
                   </td>
                 </motion.tr>
               ))}

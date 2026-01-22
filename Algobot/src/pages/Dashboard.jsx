@@ -21,6 +21,7 @@ import { analyticsAPI, productsAPI } from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useCity } from '../contexts/CityContext';
 
+import glovoLogo from '../assets/glovo.jpeg';
 import magnumLogo from '../assets/Magnum_Cash_&_Carry.png';
 import woltLogo from '../assets/Wolt_id52_mlyiE_0.svg';
 import airbaFreshLogo from '../assets/Airba Fresh_idYXu-d5px_1.svg';
@@ -38,6 +39,7 @@ const aggregatorColors = {
 };
 
 const aggregatorLogos = {
+  glovo: glovoLogo,
   magnum: magnumLogo,
   wolt: woltLogo,
   'airba fresh': airbaFreshLogo,

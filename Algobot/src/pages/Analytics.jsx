@@ -28,6 +28,8 @@ const aggregatorColors = {
 export default function Analytics() {
   const [stats, setStats] = useState(null);
   const [gaps, setGaps] = useState([]);
+  const [gapPage, setGapPage] = useState(1);
+  const [gapStats, setGapStats] = useState({ count: 0 });
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const { refreshKey, currentCity, loading: cityLoading } = useCity();
@@ -35,19 +37,20 @@ export default function Analytics() {
   useEffect(() => {
     if (cityLoading) return;
     fetchData();
-  }, [refreshKey, currentCity?.slug, cityLoading]);
+  }, [refreshKey, currentCity?.slug, cityLoading, gapPage]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const [statsRes, gapsRes, productsRes] = await Promise.all([
         analyticsAPI.getDashboard(),
-        analyticsAPI.getGaps(),
+        analyticsAPI.getGaps({ page: gapPage, page_size: 10 }),
         // Fetch more items and filter for those with competition to make the chart fuller
         productsAPI.getComparison({ page: 1, page_size: 100 }),
       ]);
       setStats(statsRes.data);
-      setGaps(gapsRes.data.results || gapsRes.data);
+      setGaps(gapsRes.data.results || []);
+      setGapStats({ count: gapsRes.data.count || 0 });
 
       // Filter for products that have the most competition (excluding our company)
       const allProds = productsRes.data.results || productsRes.data;
@@ -238,7 +241,7 @@ export default function Analytics() {
         </motion.div>
       </div>
 
-      {/* Market Gaps (Uncovered Products) */}
+      {/* Market Gaps (Uncovered Products) - Commented out as per user request
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -268,7 +271,7 @@ export default function Analytics() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {gaps.slice(0, 10).map((gap, index) => (
+            {gaps.map((gap, index) => (
               <motion.div
                 key={gap.product_id}
                 initial={{ opacity: 0, x: -10 }}
@@ -300,12 +303,29 @@ export default function Analytics() {
           </div>
         )}
 
-        {gaps.length > 10 && (
-          <div className="mt-8 text-center text-sm text-gray-400 italic">
-            Показано первые 10 товаров из {gaps.length}. Проверьте раздел "База данных" для полного списка.
+        {gapStats.count > 10 && (
+          <div className="mt-8 flex items-center justify-center gap-4">
+            <button
+              onClick={() => setGapPage(prev => Math.max(1, prev - 1))}
+              disabled={gapPage === 1}
+              className="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl text-sm font-medium disabled:opacity-50"
+            >
+              Назад
+            </button>
+            <span className="text-sm font-bold text-gray-600 dark:text-gray-400">
+              Страница {gapPage} из {Math.ceil(gapStats.count / 10)}
+            </span>
+            <button
+              onClick={() => setGapPage(prev => prev + 1)}
+              disabled={gapPage * 10 >= gapStats.count}
+              className="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl text-sm font-medium disabled:opacity-50"
+            >
+              Вперед
+            </button>
           </div>
         )}
       </motion.div>
+      */}
     </div>
   );
 }
