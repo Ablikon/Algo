@@ -438,8 +438,7 @@ class DataImporter:
     
     def _get_city_from_slug(self, agg_slug: str) -> Optional[str]:
         """Get city from aggregator slug"""
-        if 'almaty' in agg_slug:
-            return 'almaty'
-        elif 'astana' in agg_slug:
+        if 'astana' in agg_slug:
             return 'astana'
-        return None
+        # Default all others to almaty as it's the primary market
+        return 'almaty'

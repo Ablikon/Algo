@@ -35,7 +35,8 @@ async def connect_db():
         MONGO_URI,
         maxPoolSize=50,  # Connection pool for ~40k products
         minPoolSize=10,
-        serverSelectionTimeoutMS=5000
+        serverSelectionTimeoutMS=30000,
+        tlsAllowInvalidCertificates=True  # Fix for SSL handshake failures in some envs
     )
     
     db = client[MONGO_DB_NAME]
