@@ -2,19 +2,25 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { RefreshCw, TrendingUp, AlertCircle, ShoppingBag, ArrowRight } from 'lucide-react';
 import {
-  BarChart,
-  Bar,
+  PieChart,
+  Pie,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
   Cell
 } from 'recharts';
 import MatchingProgressBar from '../components/MatchingProgressBar';
 import { analyticsAPI, productsAPI } from '../services/api';
 import { useCity } from '../contexts/CityContext';
+
+import glovoLogo from '../assets/glovo.jpeg';
+import magnumLogo from '../assets/Magnum_Cash_&_Carry.png';
+import woltLogo from '../assets/Wolt_id52_mlyiE_0.svg';
+import airbaFreshLogo from '../assets/Airba Fresh_idYXu-d5px_1.svg';
+import yandexLavkaLogo from '../assets/idq0QSew-z_1768990557463.png';
+import arbuzLogo from '../assets/id-kqZgjke_1768990623965.jpeg';
 
 const aggregatorColors = {
   glovo: '#00A082',
@@ -24,6 +30,16 @@ const aggregatorColors = {
   'yandex lavka': '#FFCC00',
   arbuz: '#FF7F00',
   kaspi: '#F14635',
+};
+
+const aggregatorLogos = {
+  glovo: glovoLogo,
+  magnum: magnumLogo,
+  wolt: woltLogo,
+  'airba fresh': airbaFreshLogo,
+  'yandex lavka': yandexLavkaLogo,
+  arbuz: arbuzLogo,
+  'arbuz.kz': arbuzLogo,
 };
 
 export default function Analytics() {
@@ -175,10 +191,6 @@ export default function Analytics() {
           )}
 
           <div className="mt-6 flex justify-end">
-            <button className="flex items-center gap-2 text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 font-bold text-sm transition-colors group">
-              Смотреть все предложения
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
           </div>
         </motion.div>
 
@@ -214,73 +226,74 @@ export default function Analytics() {
             </div>
           </div>
 
-          <div className="h-[320px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart layout="vertical" data={overlapData} margin={{ top: 5, right: 60, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridColor} />
-                <XAxis
-                  type="number"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: textColor }}
-                  label={{ value: 'Количество общих товаров', position: 'insideBottom', offset: -5, fontSize: 11, fill: textColor }}
-                />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 13, fontWeight: 600, fill: '#475569' }}
-                  width={130}
-                />
-                <Tooltip
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '13px' }}
-                  formatter={(val) => [`${val} товаров`, 'Пересечение']}
-                />
-                <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={32}>
-                  {overlapData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="space-y-6 mt-4">
+            {overlapData.map((item) => {
+              const normalizedName = item.name.toLowerCase().replace('.kz', '');
+              const percentage = Math.min(Math.round((item.value / (totalOurProducts || 1)) * 100), 100);
+
+              return (
+                <div key={item.name} className="flex items-center gap-4 group">
+                  {/* Logo Container */}
+                  <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center p-2 border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden flex-shrink-0 transition-transform group-hover:scale-105">
+                    {aggregatorLogos[normalizedName] ? (
+                      <img src={aggregatorLogos[normalizedName]} alt={item.name} className="w-full h-full object-contain" />
+                    ) : (
+                      <div
+                        className="w-full h-full flex items-center justify-center text-white font-bold text-xs rounded-lg"
+                        style={{ backgroundColor: aggregatorColors[normalizedName] || '#cbd5e1' }}
+                      >
+                        {item.name.substring(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info and Progress Bar */}
+                  <div className="flex-1">
+                    <div className="flex justify-between items-end mb-1.5">
+                      <span className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight">
+                        {item.name}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-black text-gray-900 dark:text-white">
+                          {item.value} ТОВАРОВ
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Professional Slim Bar */}
+                    <div className="h-2 w-full bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${percentage}%` }}
+                        transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
+                        className="h-full rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {overlapData.length === 0 && (
+              <div className="text-center py-12 text-gray-400">
+                <ShoppingBag className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                <p>Нет данных о пересечении ассортимента</p>
+              </div>
+            )}
           </div>
 
-          {/* Insights Section */}
-          <div className="mt-6 grid grid-cols-3 gap-4">
-            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-900/10 rounded-2xl p-4 border border-emerald-200 dark:border-emerald-800">
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold uppercase mb-1">Лидер конкуренции</p>
-              <p className="text-lg font-black text-emerald-900 dark:text-emerald-300">
-                {overlapData[0]?.name || '—'}
-              </p>
-              <p className="text-xs text-emerald-700 dark:text-emerald-500 mt-1">
-                {overlapData[0]?.value || 0} общих позиций
-              </p>
+          {/* New Compact Insights */}
+          {overlapData.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-slate-700">
+              <div className="p-4 bg-gray-50/50 dark:bg-slate-700/30 rounded-2xl inline-block min-w-[200px]">
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Макс. пересечение</p>
+                <p className="text-sm font-black text-gray-900 dark:text-white truncate">
+                  {overlapData[0]?.name}
+                </p>
+              </div>
             </div>
-
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-900/10 rounded-2xl p-4 border border-blue-200 dark:border-blue-800">
-              <p className="text-xs text-blue-600 dark:text-blue-400 font-bold uppercase mb-1">Средний уровень</p>
-              <p className="text-lg font-black text-blue-900 dark:text-blue-300">
-                {overlapData.length > 0 ? Math.round(overlapData.reduce((sum, d) => sum + d.value, 0) / overlapData.length) : 0}
-              </p>
-              <p className="text-xs text-blue-700 dark:text-blue-500 mt-1">
-                товаров на конкурента
-              </p>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-900/10 rounded-2xl p-4 border border-purple-200 dark:border-purple-800">
-              <p className="text-xs text-purple-600 dark:text-purple-400 font-bold uppercase mb-1">Уникальность</p>
-              <p className="text-lg font-black text-purple-900 dark:text-purple-300">
-                {overlapData.length > 0 && totalOurProducts > 0
-                  ? Math.round(((totalOurProducts - (overlapData.reduce((sum, d) => sum + d.value, 0) / overlapData.length)) / totalOurProducts) * 100)
-                  : 0}%
-              </p>
-              <p className="text-xs text-purple-700 dark:text-purple-500 mt-1">
-                эксклюзивных товаров
-              </p>
-            </div>
-          </div>
+          )}
         </motion.div>
       </div>
     </div>
