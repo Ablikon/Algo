@@ -144,29 +144,29 @@ export default function Comparison() {
   };
 
   return (
-    <div className="p-8 pb-32">
+    <div className="p-4 md:p-8 pb-32">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Мониторинг цен</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            {pagination.total} товаров в выборке (Стр. {pagination.page} из {Math.max(1, pagination.totalPages)})
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Мониторинг цен</h1>
+          <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1">
+            {pagination.total} товаров (Стр. {pagination.page}/{Math.max(1, pagination.totalPages)})
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3">
           <button
             onClick={handleExport}
-            className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-xl font-medium transition-colors"
+            className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-colors"
           >
             <Download className="w-4 h-4" />
-            Экспорт
+            <span className="hidden sm:inline">Экспорт</span>
           </button>
           <button
             onClick={() => setRefreshTrigger(prev => prev + 1)}
-            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
+            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-colors"
           >
-            <RefreshCw className={`w - 4 h - 4 ${loading ? 'animate-spin' : ''} `} />
-            Обновить
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Обновить</span>
           </button>
         </div>
       </div>
@@ -174,31 +174,31 @@ export default function Comparison() {
       <MatchingProgressBar />
 
       {/* Filters */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-slate-700 mb-6">
-        <div className="flex flex-wrap items-center gap-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-3 md:p-4 shadow-sm border border-gray-100 dark:border-slate-700 mb-4 md:mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
           {/* Search */}
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Поиск товаров (Enter для поиска)..."
+              placeholder="Поиск товаров..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 dark:text-white"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 dark:text-white text-sm md:text-base"
             />
           </div>
 
           {/* Category Filter */}
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative sm:w-auto" ref={dropdownRef}>
             <button
               onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl hover:bg-gray-100 min-w-[200px]"
+              className="w-full sm:w-auto flex items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl hover:bg-gray-100 sm:min-w-[200px]"
             >
               <Filter className="w-5 h-5 text-gray-400" />
-              <span className="text-gray-700 dark:text-gray-200 flex-1 text-left truncate">
+              <span className="text-gray-700 dark:text-gray-200 flex-1 text-left truncate text-sm md:text-base">
                 {getSelectedCategoryNames()}
               </span>
-              <ChevronDown className={`w - 4 h - 4 text - gray - 400 transition - transform ${showCategoryDropdown ? 'rotate-180' : ''} `} />
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
             </button>
 
             {selectedCategories.length > 0 && (
@@ -212,7 +212,7 @@ export default function Comparison() {
 
             <AnimatePresence mode="wait">
               {showCategoryDropdown && (
-                <div className="absolute top-full right-0 mt-2 z-50 min-w-[280px]">
+                <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-2 z-50 w-full sm:min-w-[280px]">
                   <CategoryTree
                     categories={categoryTree}
                     selectedCategories={selectedCategories}
@@ -243,22 +243,21 @@ export default function Comparison() {
 
           {/* Pagination Controls */}
           {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-              <div className="text-sm text-gray-500">
-                Показано {(pagination.page - 1) * pagination.pageSize + 1}-{Math.min(pagination.page * pagination.pageSize, pagination.total)} из {pagination.total}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200 pt-4">
+              <div className="text-xs sm:text-sm text-gray-500 order-2 sm:order-1">
+                {(pagination.page - 1) * pagination.pageSize + 1}-{Math.min(pagination.page * pagination.pageSize, pagination.total)} из {pagination.total}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-1 sm:gap-2 order-1 sm:order-2">
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className="px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
+                  className="p-2 sm:px-3 sm:py-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
                 >
                   <ChevronLeft className="w-4 h-4" />
-                  Назад
+                  <span className="hidden sm:inline">Назад</span>
                 </button>
                 <div className="flex items-center gap-1">
                   {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                    // Simple logic to show current page surroundings
                     let pageNum = i + 1;
                     if (pagination.totalPages > 5 && pagination.page > 3) {
                       pageNum = pagination.page - 2 + i;
@@ -269,10 +268,10 @@ export default function Comparison() {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`w - 8 h - 8 rounded - lg text - sm font - medium transition - colors ${pagination.page === pageNum
+                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg text-sm font-medium transition-colors ${pagination.page === pageNum
                             ? 'bg-emerald-500 text-white'
                             : 'hover:bg-gray-50 text-gray-600'
-                          } `}
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -282,9 +281,9 @@ export default function Comparison() {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.totalPages}
-                  className="px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
+                  className="p-2 sm:px-3 sm:py-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
                 >
-                  Вперед
+                  <span className="hidden sm:inline">Вперед</span>
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>

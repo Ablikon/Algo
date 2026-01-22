@@ -94,45 +94,44 @@ export default function Analytics() {
   }
 
   return (
-    <div className="p-8 pb-16">
+    <div className="p-4 md:p-8 pb-16">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Аналитика рынка</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Детальный разбор ценовых позиций</p>
+          <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white">Аналитика рынка</h1>
+          <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 mt-1">Детальный разбор ценовых позиций</p>
         </div>
         <button
           onClick={fetchData}
-          className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-xl font-medium transition-all shadow-sm"
+          className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200 px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-all shadow-sm self-start sm:self-auto"
         >
           <RefreshCw className="w-4 h-4" />
-          Обновить
+          <span className="hidden sm:inline">Обновить</span>
         </button>
       </div>
 
       <MatchingProgressBar />
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 gap-8 mb-10">
-        {/* Chart 1: Price Index */}
+      <div className="grid grid-cols-1 gap-4 md:gap-8 mb-6 md:mb-10">
         {/* Chart 1: Market Gaps (Assortment Opportunities) */}
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-slate-700"
+          className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-sm border border-gray-100 dark:border-slate-700"
         >
-          <div className="flex items-start justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4 md:mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-cyan-100 dark:bg-cyan-900/40 rounded-xl flex items-center justify-center">
-                <ShoppingBag className="w-5 h-5 text-cyan-600" />
+              <div className="w-9 h-9 md:w-10 md:h-10 bg-cyan-100 dark:bg-cyan-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                <ShoppingBag className="w-4 h-4 md:w-5 md:h-5 text-cyan-600" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Упущенные возможности</h3>
-                <p className="text-sm text-gray-500">Товары, которые есть у конкурентов, но нет у вас</p>
+                <h3 className="text-base md:text-xl font-bold text-gray-900 dark:text-white">Упущенные возможности</h3>
+                <p className="text-xs md:text-sm text-gray-500 hidden sm:block">Товары, которые есть у конкурентов</p>
               </div>
             </div>
-            <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
-              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">ТОП-5 по популярности</p>
+            <div className="px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl self-start">
+              <p className="text-[10px] md:text-xs text-emerald-700 dark:text-emerald-400 font-semibold">ТОП-5</p>
             </div>
           </div>
 
@@ -199,20 +198,20 @@ export default function Analytics() {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
-          className="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-slate-700"
+          className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-sm border border-gray-100 dark:border-slate-700"
         >
-          <div className="flex items-start justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4 md:mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/40 rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-emerald-600" />
+              <div className="w-9 h-9 md:w-10 md:h-10 bg-emerald-100 dark:bg-emerald-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-emerald-600" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Пересечение ассортимента</h3>
-                <p className="text-sm text-gray-500">Сколько ваших товаров есть у каждого конкурента</p>
+                <h3 className="text-base md:text-xl font-bold text-gray-900 dark:text-white">Пересечение ассортимента</h3>
+                <p className="text-xs md:text-sm text-gray-500 hidden sm:block">Сколько ваших товаров есть у конкурентов</p>
               </div>
             </div>
-            <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
-              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">Из {totalOurProducts} товаров</p>
+            <div className="px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl self-start">
+              <p className="text-[10px] md:text-xs text-emerald-700 dark:text-emerald-400 font-semibold">{totalOurProducts} товаров</p>
             </div>
           </div>
 

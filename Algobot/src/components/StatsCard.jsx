@@ -18,23 +18,23 @@ export default function StatsCard({ title, value, subtitle, icon: Icon, color, t
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{title}</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{value}</p>
+    <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 dark:border-slate-700 hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 font-medium truncate">{title}</p>
+          <p className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white mt-1 md:mt-2">{value}</p>
           {subtitle && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{subtitle}</p>
+            <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">{subtitle}</p>
           )}
           {trend && (
-            <div className={`inline-flex items-center gap-1 mt-2 text-sm ${trend > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+            <div className={`inline-flex items-center gap-1 mt-1 md:mt-2 text-xs md:text-sm ${trend > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
               }`}>
               <span>{trend > 0 ? '+' : ''}{trend}%</span>
             </div>
           )}
         </div>
-        <div className={`w-12 h-12 rounded-xl ${bgColorClasses[color]} flex items-center justify-center`}>
-          <Icon className={`w-6 h-6 ${iconColorClasses[color]}`} />
+        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl ${bgColorClasses[color]} flex items-center justify-center flex-shrink-0`}>
+          <Icon className={`w-5 h-5 md:w-6 md:h-6 ${iconColorClasses[color]}`} />
         </div>
       </div>
     </div>

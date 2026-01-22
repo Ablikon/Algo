@@ -16,10 +16,11 @@ import {
   ChevronDown,
   Globe,
   MapPin,
-  Check
+  Check,
+  X
 } from 'lucide-react';
 
-export default function Sidebar() {
+export default function Sidebar({ onClose, isMobile = false }) {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t, languages } = useLanguage();
@@ -52,18 +53,34 @@ export default function Sidebar() {
 
   const currentLang = languages.find(l => l.code === language);
 
+  const handleNavClick = () => {
+    if (isMobile && onClose) {
+      onClose();
+    }
+  };
+
   return (
     <aside className="w-64 flex-shrink-0 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 h-screen sticky top-0 flex flex-col shadow-xl z-20">
       {/* Logo */}
       <div className="p-6 shrink-0 border-b border-gray-50 dark:border-slate-700/50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200 dark:shadow-none font-semibold">
-            <TrendingUp className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200 dark:shadow-none font-semibold">
+              <TrendingUp className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">PriceAlgo</h1>
+              <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">{t('priceAnalyst')}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">PriceAlgo</h1>
-            <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">{t('priceAnalyst')}</p>
-          </div>
+          {isMobile && (
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -77,6 +94,7 @@ export default function Sidebar() {
                 <Link
                   key={item.path}
                   to={item.path}
+                  onClick={handleNavClick}
                   className="relative group flex items-center gap-3 px-4 py-3 rounded-xl no-underline"
                 >
                   {/* Active Background - Shared Layout */}

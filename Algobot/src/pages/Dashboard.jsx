@@ -78,24 +78,24 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="flex items-center justify-between mb-8">
+      <div className="p-4 md:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
           <div>
-            <div className="skeleton h-8 w-32 mb-2" />
-            <div className="skeleton h-4 w-64" />
+            <div className="skeleton h-7 md:h-8 w-32 mb-2" />
+            <div className="skeleton h-4 w-48 md:w-64" />
           </div>
           <div className="skeleton h-10 w-28 rounded-xl" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div key={i} className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="skeleton h-4 w-24 mb-3" />
-                  <div className="skeleton h-8 w-16 mb-2" />
-                  <div className="skeleton h-3 w-32" />
+                  <div className="skeleton h-3 md:h-4 w-16 md:w-24 mb-2 md:mb-3" />
+                  <div className="skeleton h-6 md:h-8 w-12 md:w-16 mb-2" />
+                  <div className="skeleton h-3 w-20 md:w-32" />
                 </div>
-                <div className="skeleton h-12 w-12 rounded-xl" />
+                <div className="skeleton h-10 w-10 md:h-12 md:w-12 rounded-xl" />
               </div>
             </div>
           ))}
@@ -105,16 +105,16 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('dashboardTitle')}</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">{t('dashboardSubtitle')}</p>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{t('dashboardTitle')}</h1>
+          <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1">{t('dashboardSubtitle')}</p>
         </div>
         <button
           onClick={fetchData}
-          className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-xl font-medium transition-colors"
+          className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200 px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-colors self-start sm:self-auto"
         >
           <RefreshCw className="w-4 h-4" />
           {t('refresh')}
@@ -128,11 +128,11 @@ export default function Dashboard() {
         const displayTotal = ourTotal + competitorsTotal;
 
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
             <StatsCard
               title="Лучшая цена"
               value={stats?.products_at_top || 0}
-              subtitle={`${stats?.price_competitiveness || 0}% каталога`}
+              subtitle={`Товаров из каталога`}
               icon={Trophy}
               color="emerald"
             />
@@ -161,18 +161,11 @@ export default function Dashboard() {
         );
       })()}
 
-      {/* Detail Stats Grid - Secondary Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-
-
-
-      </div>
-
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
         {/* Market Positioning Pie Chart - Forced Ordered Legend */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Позиционирование на рынке</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 dark:border-slate-700">
+          <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white mb-4 md:mb-6">Позиционирование на рынке</h3>
           <div className="h-64 flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -224,9 +217,9 @@ export default function Dashboard() {
         </div>
 
         {/* Aggregator Live Status Grid */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700 h-full">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Активные источники</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 dark:border-slate-700 h-full">
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">Активные источники</h3>
             <div className="flex items-center gap-2">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -236,7 +229,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-4">
             {['Glovo', 'Magnum', 'Wolt', 'Airba Fresh', 'Yandex Lavka', 'Arbuz.kz'].map((name) => {
               const normalizedName = name.toLowerCase().replace('.kz', '');
               const isGlovo = normalizedName === 'glovo';
@@ -304,9 +297,9 @@ export default function Dashboard() {
       </div>
 
       {/* Price Comparison Preview */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('priceComparison')}</h3>
+      <div className="mb-6 md:mb-8">
+        <div className="flex items-center justify-between mb-3 md:mb-4">
+          <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">{t('priceComparison')}</h3>
           <Link
             to="/comparison"
             className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium text-sm"

@@ -212,37 +212,38 @@ export default function DatabaseView() {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('databaseTitle')}</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">{t('databaseSubtitle')}</p>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{t('databaseTitle')}</h1>
+          <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 mt-1">{t('databaseSubtitle')}</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 md:gap-3">
           <button
             onClick={handleRunMatching}
-            className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
+            className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-colors"
           >
             <BrainCircuit className="w-4 h-4" />
-            AI Матчинг
+            <span className="hidden sm:inline">AI Матчинг</span>
+            <span className="sm:hidden">AI</span>
           </button>
           <button
             onClick={() => setShowImport(!showImport)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-colors ${showImport
+            className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-colors ${showImport
               ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
               : 'bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600'
               }`}
           >
             <Upload className="w-4 h-4" />
-            {t('import')}
+            <span className="hidden sm:inline">{t('import')}</span>
           </button>
           <button
             onClick={fetchAllData}
-            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
+            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-colors"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            {t('refresh')}
+            <span className="hidden sm:inline">{t('refresh')}</span>
           </button>
         </div>
       </div>
@@ -259,20 +260,20 @@ export default function DatabaseView() {
         </motion.div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
         {/* Sidebar - Tables List */}
         <div className="w-full lg:w-64 shrink-0">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-slate-700">
-            <div className="flex items-center gap-2 mb-4 px-2">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-3 md:p-4 shadow-sm border border-gray-100 dark:border-slate-700">
+            <div className="flex items-center gap-2 mb-3 md:mb-4 px-2">
               <Database className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-              <span className="font-semibold text-gray-700 dark:text-gray-200">pricing_analytics</span>
+              <span className="text-sm md:text-base font-semibold text-gray-700 dark:text-gray-200">pricing_analytics</span>
             </div>
-            <div className="space-y-1">
+            <div className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0">
               {tables.map((table) => (
                 <button
                   key={table.id}
                   onClick={() => setActiveTable(table.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors ${activeTable === table.id
+                  className={`flex-shrink-0 lg:w-full flex items-center justify-between px-3 py-2 lg:py-2.5 rounded-xl transition-colors text-sm md:text-base ${activeTable === table.id
                     ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700/50'
                     }`}
@@ -283,14 +284,14 @@ export default function DatabaseView() {
                       fill={table.color}
                       stroke={table.color}
                     />
-                    <span className="font-medium">{table.name}</span>
+                    <span className="font-medium whitespace-nowrap">{table.name}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 ml-2">
                     <span className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">
                       {table.count}
                     </span>
                     {activeTable === table.id && (
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4 hidden lg:block" />
                     )}
                   </div>
                 </button>
@@ -298,8 +299,8 @@ export default function DatabaseView() {
             </div>
           </div>
 
-          {/* Schema Info */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-slate-700 mt-4">
+          {/* Schema Info - Hidden on mobile */}
+          <div className="hidden lg:block bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-slate-700 mt-4">
             <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">{t('schema')}</h4>
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
