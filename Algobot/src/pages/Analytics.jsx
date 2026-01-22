@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, TrendingUp, AlertCircle, ArrowRight, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
+import { RefreshCw, TrendingUp, AlertCircle, ArrowRight, BarChart3 } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -42,11 +42,19 @@ export default function Analytics() {
       const [statsRes, gapsRes, productsRes] = await Promise.all([
         analyticsAPI.getDashboard(),
         analyticsAPI.getGaps(),
-        productsAPI.getComparison({ page: 1, page_size: 5 }),
+        // Fetch more items and filter for those with competition to make the chart fuller
+        productsAPI.getComparison({ page: 1, page_size: 50 }),
       ]);
       setStats(statsRes.data);
       setGaps(gapsRes.data.results || gapsRes.data);
-      setProducts(productsRes.data.results || productsRes.data);
+
+      // Filter for products that have at least one competitor price
+      const allProds = productsRes.data.results || productsRes.data;
+      const sortedProds = [...allProds]
+        .sort((a, b) => Object.keys(b.prices || {}).length - Object.keys(a.prices || {}).length)
+        .slice(0, 5);
+
+      setProducts(sortedProds);
     } catch (error) {
       console.error('Error fetching analytics data:', error);
     } finally {
@@ -54,10 +62,9 @@ export default function Analytics() {
     }
   };
 
-  // 1. Price Comparison Data - Dynamically mapped from real products
+  // 1. Price Comparison Data
   const priceBenchmarkingData = products.map((p) => {
     const entry = { name: p.name.length > 35 ? p.name.substring(0, 32) + '...' : p.name };
-    // Get prices from available aggregators in metadata
     Object.entries(p.prices || {}).forEach(([name, data]) => {
       if (data.price) {
         entry[name] = data.price;
@@ -66,15 +73,15 @@ export default function Analytics() {
     return entry;
   });
 
-  // Get active aggregators from the data to build Legend/Bars dynamically
   const activeAggregators = Array.from(new Set(products.flatMap(p => Object.keys(p.prices || {}))));
 
-  // 2. Competition Index Data - Avg difference with our price
-  const competitionIndexData = stats?.aggregator_stats ? Object.entries(stats.aggregator_stats).map(([name, data]) => ({
+  // 2. Market Overlap Data
+  const totalOurProducts = (stats?.products_at_top || 0) + (stats?.products_need_action || 0);
+  const overlapData = stats?.aggregator_stats ? Object.entries(stats.aggregator_stats).map(([name, data]) => ({
     name,
-    value: data.price_index || 0,
-    color: (data.price_index || 0) < 0 ? '#f43f5e' : '#10b981', // Red if they are cheaper than us, Green if they are more expensive
-  })).sort((a, b) => a.value - b.value) : [];
+    value: data.overlap_count || 0,
+    color: aggregatorColors[name.toLowerCase().replace('.kz', '')] || '#cbd5e1',
+  })).sort((a, b) => b.value - a.value) : [];
 
   const gridColor = '#f1f5f9';
   const textColor = '#94a3b8';
@@ -105,7 +112,7 @@ export default function Analytics() {
           className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-xl font-medium transition-all shadow-sm"
         >
           <RefreshCw className="w-4 h-4" />
-          Обновить данные
+          Обновить
         </button>
       </div>
 
@@ -113,8 +120,8 @@ export default function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
         {/* Chart 1: Price Benchmarking */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
           className="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-slate-700 h-[520px] flex flex-col"
         >
           <div className="flex items-center gap-3 mb-6">
@@ -123,7 +130,7 @@ export default function Analytics() {
             </div>
             <div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">Сравнение цен</h3>
-              <p className="text-sm text-gray-500">Прямое сопоставление по товарам</p>
+              <p className="text-sm text-gray-500">Прямое сопоставление (Топ-5 товаров)</p>
             </div>
           </div>
 
@@ -143,12 +150,12 @@ export default function Analytics() {
                   dataKey="name"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fill: '#475569', fontWeight: 500 }}
-                  width={120}
+                  tick={{ fontSize: 11, fill: '#64748b', fontWeight: 500 }}
+                  width={140}
                 />
                 <Tooltip
                   cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
                   formatter={(val, name) => [formatPrice(val), name]}
                 />
                 <Legend
@@ -156,7 +163,7 @@ export default function Analytics() {
                   verticalAlign="top"
                   align="right"
                   height={36}
-                  wrapperStyle={{ fontSize: '11px', paddingBottom: '10px' }}
+                  wrapperStyle={{ fontSize: '11px', paddingBottom: '14px' }}
                 />
                 {activeAggregators.map(agg => (
                   <Bar
@@ -173,10 +180,10 @@ export default function Analytics() {
           </div>
         </motion.div>
 
-        {/* Chart 2: Competition Index */}
+        {/* Chart 2: Market Overlap */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
           className="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-slate-700 h-[520px] flex flex-col"
         >
@@ -185,38 +192,24 @@ export default function Analytics() {
               <TrendingUp className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Индекс цен</h3>
-              <p className="text-sm text-gray-500">На сколько конкуренты дороже/дешевле нас</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Пересечение рынка</h3>
+              <p className="text-sm text-gray-500">Кто ваш главный конкурент</p>
             </div>
           </div>
 
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart layout="vertical" data={competitionIndexData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <BarChart layout="vertical" data={overlapData} margin={{ top: 5, right: 60, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridColor} />
-                <XAxis
-                  type="number"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 10, fill: textColor }}
-                  tickFormatter={(val) => `${val > 0 ? '+' : ''}${val}%`}
-                  domain={['auto', 'auto']}
-                />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: '#475569', fontWeight: 600 }}
-                  width={120}
-                />
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 600, fill: '#475569' }} width={110} />
                 <Tooltip
                   cursor={{ fill: '#f8fafc' }}
                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  formatter={(val) => [`${val > 0 ? '+' : ''}${val}%`, 'Разница']}
+                  formatter={(val) => [`${val} тов.`, 'Общих товаров']}
                 />
-                <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={32}>
-                  {competitionIndexData.map((entry, index) => (
+                <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={28}>
+                  {overlapData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Bar>
@@ -224,17 +217,12 @@ export default function Analytics() {
             </ResponsiveContainer>
           </div>
 
-          <div className="mt-6 flex flex-col gap-3">
-            <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-slate-700/50 rounded-2xl border border-gray-100 dark:border-slate-600">
-              <div className="w-3 h-3 rounded-full bg-emerald-500" />
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                <span className="font-bold text-emerald-600">Зеленый блок:</span> Конкурент дороже нас. У вас выгодная позиция.
-              </p>
-            </div>
-            <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-slate-700/50 rounded-2xl border border-gray-100 dark:border-slate-600">
-              <div className="w-3 h-3 rounded-full bg-rose-500" />
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                <span className="font-bold text-rose-600">Красный блок:</span> Конкурент демпингует. Нужно проверить цены.
+          <div className="mt-4 p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-900/30">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-4 h-4 text-blue-500 mt-0.5" />
+              <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
+                График показывает, сколько ваших товаров (из {totalOurProducts}) также есть у конкурентов.
+                Чем больше пересечение, тем выше конкуренция за покупателя.
               </p>
             </div>
           </div>

@@ -112,14 +112,38 @@ class ProductMapper:
                             'reason': match_result.get('reason')
                         })
                         
-                        # Update product with match info
-                        await self.db.products.update_one(
-                            {'_id': product['_id']},
-                            {'$set': {
-                                'mapping_status': 'matched',
-                                'match_result': match_result
-                            }}
-                        )
+                        # Update product with match info and MERGE PRICES
+                        matched_product = await self.db.products.find_one({'_id': match_result['matched_uuid']})
+                        if matched_product and 'prices' in matched_product:
+                            # Add competitor prices to our product
+                            await self.db.products.update_one(
+                                {'_id': product['_id']},
+                                {
+                                    '$set': {
+                                        'mapping_status': 'matched',
+                                        'match_result': match_result
+                                    },
+                                    '$addToSet': {
+                                        'prices': {'$each': matched_product['prices']}
+                                    }
+                                }
+                            )
+                            # Remove the standalone competitor product document to avoid duplication
+                            # since it's now merged into the main product
+                            # await self.db.products.delete_one({'_id': matched_product['_id']})
+                            # NOTE: We keep it for now but mark it as 'merged' to be safe
+                            await self.db.products.update_one(
+                                {'_id': matched_product['_id']},
+                                {'$set': {'mapping_status': 'merged_into_parent', 'parent_id': product['_id']}}
+                            )
+                        else:
+                            await self.db.products.update_one(
+                                {'_id': product['_id']},
+                                {'$set': {
+                                    'mapping_status': 'matched',
+                                    'match_result': match_result
+                                }}
+                            )
                     else:
                         results['no_match'] += 1
                         
