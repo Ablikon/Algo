@@ -13,6 +13,7 @@ import logging
 from database import get_db
 from models import ImportRequest, ImportResult
 from services.data_importer import DataImporter
+from services.product_mapper import MATCHING_STATUS
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -90,6 +91,7 @@ async def import_from_json(request: ImportRequest, background_tasks: BackgroundT
 
 @router.post("/import/run-matching/")
 async def run_product_matching(
+    background_tasks: BackgroundTasks,
     batch_size: int = 10,
     use_ai: bool = True
 ):
@@ -102,16 +104,20 @@ async def run_product_matching(
     db = get_db()
     mapper = ProductMapper(db)
     
-    try:
-        result = await mapper.run_matching(
-            batch_size=batch_size,
-            use_ai=use_ai
-        )
-        return result
+    db = get_db()
+    mapper = ProductMapper(db)
     
-    except Exception as e:
-        logger.error(f"Matching error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    if MATCHING_STATUS['is_running']:
+        return {"result": "already_running", "status": MATCHING_STATUS}
+
+    background_tasks.add_task(mapper.run_matching, batch_size, use_ai)
+    
+    return {"result": "started", "status": "background_task_initiated"}
+
+@router.get("/import/matching-progress")
+async def get_matching_progress():
+    """Get current status of product matching process"""
+    return MATCHING_STATUS
 
 
 async def update_category_counts(db):

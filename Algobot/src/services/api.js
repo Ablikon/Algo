@@ -70,6 +70,7 @@ export const importAPI = {
   importFromJson: (data) => api.post('/import/json/', data),
   // Run product matching
   runMatching: (params = {}) => api.post('/import/run-matching/', null, { params }),
+  getMatchingProgress: () => api.get('/import/matching-progress'),
 };
 
 export const exportAPI = {

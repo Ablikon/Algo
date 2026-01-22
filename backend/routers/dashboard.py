@@ -230,3 +230,64 @@ async def get_dashboard_stats(city: Optional[str] = Query(None)):
         price_competitiveness=round(price_competitiveness, 1),
         aggregator_stats=aggregator_stats
     )
+
+@router.get("/dashboard/gaps/")
+async def get_market_gaps(
+    city: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100)
+):
+    """
+    Get products that competitors have but we don't (Market Gaps).
+    """
+    db = get_db()
+    
+    # Query for products where we have no price but competitors do
+    query = {
+        "prices": {
+            "$elemMatch": {"aggregator": {"$ne": OUR_COMPANY}}
+        },
+        "prices.aggregator": {"$ne": OUR_COMPANY}
+    }
+    
+    if city:
+        query["prices.city"] = city
+        
+    total = await db.products.count_documents(query)
+    skip = (page - 1) * page_size
+    
+    # Find products and sort by number of competitor prices
+    pipeline = [
+        {"$match": query},
+        {"$addFields": {
+            "comp_count": {"$size": "$prices"},
+            "min_comp_price": {"$min": "$prices.price"}
+        }},
+        {"$sort": {"comp_count": -1, "min_comp_price": 1}},
+        {"$skip": skip},
+        {"$limit": page_size}
+    ]
+    
+    gaps = await db.products.aggregate(pipeline).to_list(length=page_size)
+    
+    results = []
+    for g in gaps:
+        min_price = g.get("min_comp_price", 0)
+        # Suggested price is usually 1-5% lower if we were to add it, 
+        # but for now let's just use min competitor price - 1
+        suggested = min_price - 1 if min_price > 0 else 0
+        
+        results.append({
+            "product_id": str(g["_id"]),
+            "product_name": g.get("name"),
+            "category": g.get("category"),
+            "subcategory": g.get("subcategory"),
+            "min_competitor_price": min_price,
+            "suggested_price": suggested,
+            "competitor_count": g.get("comp_count", 0)
+        })
+        
+    return {
+        "count": total,
+        "results": results
+    }

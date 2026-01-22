@@ -77,10 +77,14 @@ async def get_products_comparison(
     """
     db = get_db()
     
-    # Build query
-    query = {}
+    # Build query conditions
+    and_conditions = [
+        {"prices.aggregator": OUR_COMPANY},
+        {"prices": {"$elemMatch": {"aggregator": {"$ne": OUR_COMPANY}}}}
+    ]
+    
     if search:
-        query["$text"] = {"$search": search}
+        and_conditions.append({"$text": {"$search": search}})
     
     # Category filter - get category names from IDs
     if category_ids:
@@ -90,14 +94,19 @@ async def get_products_comparison(
         category_names = [c["name"] for c in category_docs]
         
         if category_names:
-            query["$or"] = [
-                {"category": {"$in": category_names}},
-                {"subcategory": {"$in": category_names}}
-            ]
+            and_conditions.append({
+                "$or": [
+                    {"category": {"$in": category_names}},
+                    {"subcategory": {"$in": category_names}}
+                ]
+            })
     
     # City filter on prices
     if city:
-        query["prices.city"] = city
+        and_conditions.append({"prices.city": city})
+    
+    # Combine conditions
+    query = {"$and": and_conditions} if and_conditions else {}
     
     # Total count
     total = await db.products.count_documents(query)

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Database, Table2, RefreshCw, ChevronRight, Circle, Upload } from 'lucide-react';
-import { aggregatorsAPI, categoriesAPI, productsAPI, recommendationsAPI } from '../services/api';
+import { Database, Table2, RefreshCw, ChevronRight, Circle, Upload, BrainCircuit } from 'lucide-react';
+import { aggregatorsAPI, categoriesAPI, productsAPI, recommendationsAPI, importAPI } from '../services/api';
 import BulkImport from '../components/BulkImport';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useCity } from '../contexts/CityContext';
@@ -46,6 +46,18 @@ export default function DatabaseView() {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRunMatching = async () => {
+    if (!confirm('Запустить процесс AI матчинга товаров? Это может занять время.')) return;
+
+    try {
+      await importAPI.runMatching();
+      alert('Процесс матчинга запущен в фоновом режиме! Вы можете следить за прогрессом на странице Сравнения цен или Аналитики.');
+    } catch (error) {
+      console.error('Error starting matching:', error);
+      alert('Ошибка при запуске матчинга: ' + (error.response?.data?.detail || error.message));
     }
   };
 
@@ -284,6 +296,13 @@ export default function DatabaseView() {
           <p className="text-gray-500 dark:text-gray-400 mt-1">{t('databaseSubtitle')}</p>
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={handleRunMatching}
+            className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
+          >
+            <BrainCircuit className="w-4 h-4" />
+            AI Матчинг
+          </button>
           <button
             onClick={() => setShowImport(!showImport)}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-colors ${showImport

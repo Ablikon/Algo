@@ -2,20 +2,41 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronDown, Folder, FolderOpen, Check, Layers, Search, X } from 'lucide-react';
 
+function collectDescendantIds(children = []) {
+  const ids = [];
+  const visit = (nodes) => {
+    nodes.forEach((n) => {
+      ids.push(n.id);
+      if (n.children && n.children.length > 0) visit(n.children);
+    });
+  };
+  visit(children);
+  return ids;
+}
+
 function CategoryNode({ category, selectedCategories, onToggle, level = 0, searchTerm = '' }) {
   const [isExpanded, setIsExpanded] = useState(level === 0 || searchTerm.length > 0);
   const hasChildren = category.children && category.children.length > 0;
   const isSelected = selectedCategories.includes(category.id);
 
-  // If we are searching, expand nodes that have children matching the search
-  if (searchTerm.length > 0 && hasChildren && !isExpanded) {
-    setIsExpanded(true);
-  }
+  // Check if any/all descendants are selected (not only direct children)
+  const descendantIds = hasChildren ? collectDescendantIds(category.children) : [];
+  const allChildrenSelected = hasChildren && descendantIds.length > 0 && descendantIds.every(
+    (id) => selectedCategories.includes(id)
+  );
+  const someChildrenSelected = hasChildren && descendantIds.some(
+    (id) => selectedCategories.includes(id)
+  );
 
   const handleCheckboxClick = (e) => {
     e.stopPropagation();
     onToggle(category.id, category.children || []);
   };
+
+  // If we are searching, expand nodes that have children matching the search
+  if (searchTerm.length > 0 && hasChildren && !isExpanded) {
+    setIsExpanded(true);
+  }
 
   const handleExpandClick = () => {
     if (hasChildren) {
@@ -26,38 +47,60 @@ function CategoryNode({ category, selectedCategories, onToggle, level = 0, searc
   return (
     <div className="select-none">
       <div
-        className={`group flex items-center gap-2 py-1.5 px-2 my-0.5 rounded-lg cursor-pointer transition-all ${isSelected
-          ? 'bg-emerald-50 text-emerald-900 border border-emerald-100'
-          : 'hover:bg-gray-50 text-gray-700 border border-transparent'
+        className={`group flex items-center gap-3 py-2 px-3 my-1 mx-1 rounded-xl cursor-pointer transition-all ${isSelected
+          ? 'bg-emerald-50 border border-emerald-100'
+          : 'hover:bg-gray-50 border border-transparent'
           }`}
-        style={{ marginLeft: `${level * 16}px` }}
+        style={{ marginLeft: `${level * 12}px` }}
         onClick={handleExpandClick}
       >
-        <div className={`shrink-0 w-4 h-4 transition-colors flex items-center justify-center ${hasChildren ? 'text-gray-400' : 'opacity-0'
+        {/* Expand/Collapse Control */}
+        <div className={`p-1 rounded-lg transition-colors ${hasChildren ? 'hover:bg-black/5 text-gray-400' : 'opacity-0'
           }`}>
           {hasChildren && (
-            isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />
+            isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
           )}
         </div>
 
+        {/* Custom Checkbox */}
         <div
           onClick={handleCheckboxClick}
-          className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-all ${isSelected
-            ? 'bg-emerald-600 border-emerald-600'
-            : 'bg-white border-gray-300'
+          className={`shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all shadow-sm ${isSelected || allChildrenSelected
+            ? 'bg-emerald-500 border-emerald-500 shadow-emerald-200'
+            : someChildrenSelected
+              ? 'bg-white border-emerald-500'
+              : 'bg-white border-gray-300 group-hover:border-emerald-400'
             }`}
         >
-          {isSelected && <Check className="w-3 h-3 text-white stroke-[3px]" />}
+          {(isSelected || allChildrenSelected) && <Check className="w-3.5 h-3.5 text-white stroke-[3px]" />}
+          {someChildrenSelected && !isSelected && !allChildrenSelected && (
+            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-sm" />
+          )}
         </div>
 
-        <div className="flex-1 flex items-center gap-2 min-w-0">
-          <span className={`text-xs font-medium truncate ${isSelected ? 'font-bold' : ''
-            }`} title={category.name}>
+        {/* Icon & Name */}
+        <div className="flex-1 flex items-center gap-2">
+          {hasChildren ? (
+            isExpanded ? <FolderOpen className="w-4 h-4 text-amber-500" /> : <Folder className="w-4 h-4 text-amber-500" />
+          ) : (
+            <Layers className={`w-4 h-4 ${isSelected ? 'text-emerald-600' : 'text-gray-400'}`} />
+          )}
+          <span className={`text-sm font-medium ${isSelected ? 'text-emerald-900' : 'text-gray-700'
+            }`}>
             {category.name}
           </span>
         </div>
+
+        {/* Count Badge */}
+        {category.product_count > 0 && (
+          <span className={`text-xs px-2 py-0.5 rounded-full ${isSelected ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+            }`}>
+            {category.product_count}
+          </span>
+        )}
       </div>
 
+      {/* Children */}
       <AnimatePresence>
         {hasChildren && isExpanded && (
           <motion.div
@@ -83,7 +126,6 @@ function CategoryNode({ category, selectedCategories, onToggle, level = 0, searc
     </div>
   );
 }
-
 export default function CategoryTree({
   categories,
   selectedCategories,
@@ -112,40 +154,19 @@ export default function CategoryTree({
     filterCategories(categories, searchTerm),
     [categories, searchTerm]
   );
-
   const handleToggle = (categoryId, children) => {
     let newSelected = [...selectedCategories];
-    const isCurrentlySelected = newSelected.includes(categoryId);
+    const descendantIds = collectDescendantIds(children);
 
-    const getDeepIds = (cat) => {
-      let ids = [cat.id];
-      if (cat.children) {
-        cat.children.forEach(c => {
-          ids = [...ids, ...getDeepIds(c)];
-        });
-      }
-      return ids;
-    };
-
-    // Find the category object to get all nested children IDs
-    const findCat = (cats, id) => {
-      for (const cat of cats) {
-        if (cat.id === id) return cat;
-        if (cat.children) {
-          const found = findCat(cat.children, id);
-          if (found) return found;
-        }
-      }
-      return null;
-    };
-
-    const catObj = findCat(categories, categoryId);
-    const affectedIds = catObj ? getDeepIds(catObj) : [categoryId];
-
-    if (isCurrentlySelected) {
-      newSelected = newSelected.filter(id => !affectedIds.includes(id));
+    if (newSelected.includes(categoryId)) {
+      // Deselect: remove category and ALL descendants
+      newSelected = newSelected.filter((id) => id !== categoryId && !descendantIds.includes(id));
     } else {
-      affectedIds.forEach(id => {
+      // Select: add category
+      newSelected.push(categoryId);
+      // IMPORTANT: filtering in `Comparison.jsx` is by `product.category_id`,
+      // so selecting a parent must also select all descendants.
+      descendantIds.forEach((id) => {
         if (!newSelected.includes(id)) newSelected.push(id);
       });
     }
@@ -192,7 +213,7 @@ export default function CategoryTree({
           )}
         </div>
 
-        {showSelectAll && categories.length > 0 && (
+        {showSelectAll && (
           <div
             className="flex items-center gap-3 py-2 px-3 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors border border-dashed border-gray-200 dark:border-slate-700"
             onClick={handleSelectAll}
@@ -228,14 +249,6 @@ export default function CategoryTree({
               <Search className="w-8 h-8 opacity-20" />
             </div>
             <span className="text-sm font-medium">Ничего не найдено</span>
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="mt-2 text-xs text-emerald-500 hover:underline"
-              >
-                Сбросить поиск
-              </button>
-            )}
           </div>
         )}
       </div>

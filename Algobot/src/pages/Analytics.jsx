@@ -12,6 +12,7 @@ import {
   Legend,
   Cell
 } from 'recharts';
+import MatchingProgressBar from '../components/MatchingProgressBar';
 import { analyticsAPI, productsAPI } from '../services/api';
 import { useCity } from '../contexts/CityContext';
 
@@ -121,6 +122,8 @@ export default function Analytics() {
           Обновить
         </button>
       </div>
+
+      <MatchingProgressBar />
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">

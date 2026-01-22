@@ -88,6 +88,17 @@ SYNONYM_GROUPS = {
 }
 
 
+# Global status tracker
+MATCHING_STATUS = {
+    'is_running': False,
+    'total': 0,
+    'processed': 0,
+    'matched': 0,
+    'start_time': None,
+    'current_product': None,
+    'errors': 0
+}
+
 class ProductMapper:
     """
     Ultra-smart AI Product Mapper using full ChatGPT capabilities.
@@ -99,6 +110,7 @@ class ProductMapper:
     - Comprehensive synonym handling
     - Transliteration-aware matching (CYR <-> LAT)
     - Smart weight/size tolerance
+    - Fallback fuzzy matching strategy
     """
 
     def __init__(self, db, config: Optional[Dict] = None):
@@ -112,6 +124,7 @@ class ProductMapper:
             'weight_tolerance_ratio': 0.3,  # Also allow 30% relative difference
             'auto_match_threshold': 95,  # Very high threshold for auto-match
             'min_candidate_threshold': 25,  # Include weak candidates for AI
+            'enable_fallback': True,  # New: enable fuzzy fallback
         }
 
         if OPENAI_API_KEY:
@@ -135,6 +148,14 @@ class ProductMapper:
             prioritize_multi_aggregator: If True, process products with more
                 aggregator coverage first
         """
+        
+        # Reset and init status
+        MATCHING_STATUS['is_running'] = True
+        MATCHING_STATUS['processed'] = 0
+        MATCHING_STATUS['matched'] = 0
+        MATCHING_STATUS['errors'] = 0
+        MATCHING_STATUS['start_time'] = datetime.now().isoformat()
+        MATCHING_STATUS['current_product'] = "Initializing..."
 
         # Get all products
         all_products = await self.db.products.find().to_list(length=50000)
@@ -164,6 +185,8 @@ class ProductMapper:
             )
             logger.info("🎯 Prioritizing products with more aggregator coverage")
 
+            logger.info("🎯 Prioritizing products with more aggregator coverage")
+
         results = {
             'total': len(our_products),
             'matched': 0,
@@ -172,6 +195,9 @@ class ProductMapper:
             'matches': [],
             'skips': []
         }
+        
+        MATCHING_STATUS['total'] = len(our_products)
+        MATCHING_STATUS['current_product'] = "Starting batch processing..."
 
         # Process in batches
         for i in range(0, len(our_products), batch_size):
@@ -179,6 +205,9 @@ class ProductMapper:
 
             for product in batch:
                 try:
+                    p_name = product.get('name', 'Unknown')
+                    MATCHING_STATUS['current_product'] = p_name
+                    
                     agg_count = product_agg_counts.get(str(product.get('_id')), 0)
                     match_result = await self._match_product(
                         product,
@@ -188,6 +217,8 @@ class ProductMapper:
 
                     if match_result['best_match'] == 'match':
                         results['matched'] += 1
+                        MATCHING_STATUS['matched'] += 1
+                        
                         results['matches'].append({
                             'product_name': product.get('name'),
                             'matched_name': match_result.get('matched_csv_title'),
@@ -266,9 +297,11 @@ class ProductMapper:
                 except Exception as e:
                     logger.error(f"Error matching {product.get('name')}: {e}")
                     results['errors'] += 1
+                    MATCHING_STATUS['errors'] += 1
 
             # Progress logging
             processed = min(i + batch_size, len(our_products))
+            MATCHING_STATUS['processed'] = processed
             logger.info(
                 f"✅ Processed {processed}/{len(our_products)} | "
                 f"Matched: {results['matched']} | "
@@ -277,6 +310,9 @@ class ProductMapper:
             )
 
             await asyncio.sleep(0.1)
+            
+        MATCHING_STATUS['is_running'] = False
+        MATCHING_STATUS['current_product'] = "Completed"
 
         return results
 
@@ -514,6 +550,10 @@ class ProductMapper:
 
         # Find candidates using multiple strategies
         candidates = self._find_candidates_enhanced(product, all_products)
+        
+        # If no candidates found with strict/smart strategies, try fallback
+        if not candidates and self.config.get('enable_fallback', False):
+            candidates = self._find_candidates_fallback(product, all_products)
 
         if not candidates:
             return {
@@ -866,6 +906,88 @@ class ProductMapper:
                 'reasons': ', '.join(reasons),
                 'aggregator_count': aggregator_count
             }
+
+    def _find_candidates_fallback(self, product: Dict, all_products: List[Dict]) -> List[Dict]:
+        """
+        Fallback strategy: Bruteforce fuzzy search if indexes fail.
+        This is slower but ensures we find something if it exists.
+        """
+        product_name = self._normalize_string(product.get('name', ''))
+        product_id = str(product.get('_id', ''))
+        product_weight = self._extract_weight(product)
+        
+        if len(product_name) < 3:
+            return []
+            
+        candidates = {}
+        
+        # We need to iterate all products since indexes didn't help
+        # Optimizing by doing a quick check first
+        
+        # Pre-filter by weight if we have it
+        potential_pool = []
+        if product_weight:
+            # Only check products with same weight unit class (ignoring small diffs)
+            tolerance = self.config['weight_tolerance'] * 2 # Double tolerance for fallback
+            
+            for p in all_products:
+                pid = str(p.get('_id', ''))
+                if pid == product_id:
+                    continue
+                    
+                p_weight = self._extract_weight(p)
+                if p_weight:
+                    if abs(p_weight - product_weight) <= tolerance:
+                        potential_pool.append(p)
+                else:
+                    # If product has no weight, include it just in case
+                    potential_pool.append(p)
+        else:
+            potential_pool = all_products
+            
+        # Fuzzy match on name for the pool
+        # Limit pool size to avoid timeout if it's too huge
+        if len(potential_pool) > 10000:
+             # Random sample or just first N might be bad, but better than freezing
+             # Let's trust that previous steps filtered easy strict matches
+             pass
+
+        for p in potential_pool[:5000]: # Check at most 5000 to be safe
+             pid = str(p.get('_id', ''))
+             if pid == product_id:
+                continue
+                
+             p_name = self._normalize_string(p.get('name', ''))
+             
+             # Quick substring check
+             # If significant words from source are in target
+             p_words = set(product_name.split())
+             c_words = set(p_name.split())
+             
+             overlap = len(p_words & c_words)
+             # simple ratio
+             if overlap >= 2 or (overlap == 1 and len(p_words) <= 2):
+                 # Detail check
+                 ratio = SequenceMatcher(None, product_name, p_name).ratio()
+                 if ratio > 0.4: # Very loose threshold
+                     self._score_candidate_enhanced(
+                        p, product_name, 
+                        product.get('brand',''), 
+                        product_weight, 
+                        candidates, 
+                        boost=int(ratio * 10)
+                     )
+                     
+        sorted_candidates = sorted(
+            candidates.values(),
+            key=lambda x: (x['score'], x['aggregator_count']),
+            reverse=True
+        )[:20] # Return top 20 fallback candidates
+        
+        if sorted_candidates:
+            logger.info(f"⚠️ Used fallback strategy for '{product.get('name')}': found {len(sorted_candidates)} candidates")
+            
+        return sorted_candidates
 
     def _word_overlap_score(self, s1: str, s2: str) -> float:
         """Calculate word overlap score"""

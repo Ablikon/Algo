@@ -1,4 +1,3 @@
-from rest_framework import serializers
 from .models import Aggregator, Category, Product, Price, Recommendation, PriceHistory, ProductLink, UnitConversion, ImportJob, City
 
 
@@ -16,11 +15,10 @@ class AggregatorSerializer(serializers.ModelSerializer):
 
 class CategorySerializer(serializers.ModelSerializer):
     parent_id = serializers.IntegerField(source='parent.id', read_only=True, allow_null=True)
-    product_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'icon', 'parent_id', 'sort_order', 'product_count']
+        fields = ['id', 'name', 'icon', 'parent_id', 'sort_order']
 
 
 class CategoryTreeSerializer(serializers.ModelSerializer):
@@ -36,10 +34,10 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
         return CategoryTreeSerializer(children, many=True).data
 
     def get_product_count(self, obj):
-        count = Product.objects.filter(category=obj).count()
-        for child in obj.children.all():
-            count += Product.objects.filter(category=child).count()
-        return count
+        # Count products in this category + all descendants (any depth)
+        descendants = obj.get_descendants()
+        category_ids = [obj.id] + [c.id for c in descendants]
+        return Product.objects.filter(category_id__in=category_ids).count()
 
 
 class ProductLinkSerializer(serializers.ModelSerializer):
@@ -55,10 +53,6 @@ class ImportJobSerializer(serializers.ModelSerializer):
         model = ImportJob
         fields = '__all__'
 
-
-class PriceSerializer(serializers.ModelSerializer):
-    aggregator_name = serializers.CharField(source='aggregator.name', read_only=True)
-    aggregator_color = serializers.CharField(source='aggregator.color', read_only=True)
 
     city_name = serializers.CharField(source='city.name', read_only=True)
 
@@ -113,12 +107,7 @@ class ProductComparisonSerializer(serializers.ModelSerializer):
             if request and request.query_params.get('city'):
                 prices = prices.filter(city__slug=request.query_params.get('city'))
 
-        # Use prefetched links if available
-        if hasattr(obj, 'links'): # Using the related_name 'links'
-             links = {link.aggregator_id: link for link in obj.links.all()}
-        else:
-             links = {link.aggregator_id: link for link in ProductLink.objects.filter(product=obj)}
-
+        links = {link.aggregator_id: link for link in ProductLink.objects.filter(product=obj)}
         result = {}
         for price in prices:
             link = links.get(price.aggregator_id)
@@ -185,7 +174,7 @@ class ProductComparisonSerializer(serializers.ModelSerializer):
             request = self.context.get('request')
             if request and request.query_params.get('city'):
                 prices = prices.filter(city__slug=request.query_params.get('city'))
-
+        
         our_price = None
         competitor_prices = []
 

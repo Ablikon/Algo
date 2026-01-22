@@ -1,7 +1,9 @@
+
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Search, Filter, RefreshCw, Download, ChevronDown, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import ComparisonTable from '../components/ComparisonTable';
+import MatchingProgressBar from '../components/MatchingProgressBar';
 import CategoryTree from '../components/CategoryTree';
 import { productsAPI, categoriesAPI } from '../services/api';
 import { useCity } from '../contexts/CityContext';
@@ -123,7 +125,7 @@ export default function Comparison() {
     if (debouncedSearch) {
       params.append('search', debouncedSearch);
     }
-    window.open(`http://localhost:8000/api/export/products/?${params.toString()}`, '_blank');
+    window.open('/api/export/products/?' + params.toString(), '_blank');
   };
 
   const getSelectedCategoryNames = () => {
@@ -131,7 +133,7 @@ export default function Comparison() {
     if (selectedCategories.length === getAllCategoryIds(categoryTree).length) return 'Все категории';
     const names = categories.filter(c => selectedCategories.includes(c.id)).map(c => c.name);
     if (names.length <= 2) return names.join(', ');
-    return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
+    return `${names.slice(0, 2).join(', ')} +${names.length - 2} `;
   };
 
   const handlePageChange = (newPage) => {
@@ -163,11 +165,13 @@ export default function Comparison() {
             onClick={() => setRefreshTrigger(prev => prev + 1)}
             className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w - 4 h - 4 ${loading ? 'animate-spin' : ''} `} />
             Обновить
           </button>
         </div>
       </div>
+
+      <MatchingProgressBar />
 
       {/* Filters */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-slate-700 mb-6">
@@ -194,7 +198,7 @@ export default function Comparison() {
               <span className="text-gray-700 dark:text-gray-200 flex-1 text-left truncate">
                 {getSelectedCategoryNames()}
               </span>
-              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w - 4 h - 4 text - gray - 400 transition - transform ${showCategoryDropdown ? 'rotate-180' : ''} `} />
             </button>
 
             {selectedCategories.length > 0 && (
@@ -265,10 +269,10 @@ export default function Comparison() {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${pagination.page === pageNum
-                          ? 'bg-emerald-500 text-white'
-                          : 'hover:bg-gray-50 text-gray-600'
-                          }`}
+                        className={`w - 8 h - 8 rounded - lg text - sm font - medium transition - colors ${pagination.page === pageNum
+                            ? 'bg-emerald-500 text-white'
+                            : 'hover:bg-gray-50 text-gray-600'
+                          } `}
                       >
                         {pageNum}
                       </button>
