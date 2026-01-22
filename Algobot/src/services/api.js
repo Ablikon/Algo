@@ -49,7 +49,7 @@ export const recommendationsAPI = {
 
 export const analyticsAPI = {
   getDashboard: () => api.get('/dashboard/'),
-  getGaps: () => api.get('/analytics/gaps/'),
+  getGaps: (params = {}) => api.get('/dashboard/gaps/', { params }),
   getPriceHistory: () => api.get('/price-history/'),
 };
 
