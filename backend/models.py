@@ -168,7 +168,7 @@ class DashboardStats(BaseModel):
     potential_savings: float = 0
     market_coverage: float = 0
     price_competitiveness: float = 0
-    aggregator_stats: Dict[str, Dict[str, Any]] = {}
+    aggregator_stats: Dict[str, Dict[str, Any]] = {}  # {name: {count, percent, overlap_count, price_index}}
 
 
 # ============ Recommendations ============

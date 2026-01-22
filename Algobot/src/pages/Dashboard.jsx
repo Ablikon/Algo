@@ -48,16 +48,15 @@ const aggregatorLogos = {
 
 export default function Dashboard() {
   const { t } = useLanguage();
-  const { refreshKey, currentCity } = useCity();
+  const { refreshKey, currentCity, loading: cityLoading } = useCity();
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Only fetch if we have a city (or if we want to allow global stats, but usually we want city)
-    // Adding currentCity?.slug to dependency to refetch when auto-selected
+    if (cityLoading) return;
     fetchData();
-  }, [refreshKey, currentCity?.slug]);
+  }, [refreshKey, currentCity?.slug, cityLoading]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -121,36 +120,44 @@ export default function Dashboard() {
       </div>
 
       {/* Main Stats Grid - Reordered: Leader, Higher, Missing, Total */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          title="Лучшая цена"
-          value={stats?.products_at_top || 0}
-          subtitle={`${stats?.price_competitiveness || 0}% каталога`}
-          icon={Trophy}
-          color="emerald"
-        />
-        <StatsCard
-          title="Выше конкурентов"
-          value={stats?.products_need_action || 0}
-          subtitle="Требуют коррекции"
-          icon={AlertTriangle}
-          color="amber"
-        />
-        <StatsCard
-          title="Только у конкурентов"
-          value={stats?.missing_products || 0}
-          subtitle="Упущенный ассортимент"
-          icon={Snail}
-          color="rose"
-        />
-        <StatsCard
-          title="Всего товаров"
-          value={stats?.total_products || 0}
-          subtitle="В выборке магазина"
-          icon={Package}
-          color="blue"
-        />
-      </div>
+      {(() => {
+        const competitorsTotal = Object.values(stats?.aggregator_stats || {}).reduce((acc, curr) => acc + (curr.count || 0), 0);
+        const ourTotal = (stats?.products_at_top || 0) + (stats?.products_need_action || 0);
+        const displayTotal = ourTotal + competitorsTotal;
+
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <StatsCard
+              title="Лучшая цена"
+              value={stats?.products_at_top || 0}
+              subtitle={`${stats?.price_competitiveness || 0}% каталога`}
+              icon={Trophy}
+              color="emerald"
+            />
+            <StatsCard
+              title="Выше конкурентов"
+              value={stats?.products_need_action || 0}
+              subtitle="Требуют коррекции"
+              icon={AlertTriangle}
+              color="amber"
+            />
+            <StatsCard
+              title="Только у конкурентов"
+              value={competitorsTotal}
+              subtitle="Общий ассортимент"
+              icon={Snail}
+              color="rose"
+            />
+            <StatsCard
+              title="Всего товаров"
+              value={displayTotal}
+              subtitle="В выборке магазина"
+              icon={Package}
+              color="blue"
+            />
+          </div>
+        );
+      })()}
 
       {/* Detail Stats Grid - Secondary Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -214,47 +221,82 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Aggregator Coverage Bars */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Охват цен конкурентов</h3>
-          <div className="space-y-4">
-            {Object.entries(stats?.aggregator_stats || {})
-              .sort(([, a], [, b]) => b.percent - a.percent)
-              .map(([name, data]) => (
-                <div key={name} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2.5">
-                      {aggregatorLogos[name.toLowerCase()] ? (
-                        <div className={`flex items-center justify-center rounded-sm overflow-hidden ${name.toLowerCase() === 'airba fresh'
-                          ? 'w-9 h-6 bg-[#78B833]/10 p-1'
-                          : name.toLowerCase() === 'wolt'
-                            ? 'w-6 h-6'
-                            : 'w-5 h-5'
-                          }`}>
-                          <img
-                            src={aggregatorLogos[name.toLowerCase()]}
-                            alt={name}
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
+        {/* Aggregator Live Status Grid */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700 h-full">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Активные источники</h3>
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Live Updating</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {['Glovo', 'Magnum', 'Wolt', 'Airba Fresh', 'Yandex Lavka', 'Arbuz.kz'].map((name) => {
+              const normalizedName = name.toLowerCase().replace('.kz', '');
+              const isGlovo = normalizedName === 'glovo';
+
+              const aggStats = stats?.aggregator_stats?.[name] || stats?.aggregator_stats?.[name.replace('.kz', '')];
+              const isOnline = isGlovo ? !!stats : !!aggStats;
+
+              // Only count products we actually have (at top price or needing action)
+              const count = isGlovo
+                ? ((stats?.products_at_top || 0) + (stats?.products_need_action || 0))
+                : (aggStats?.count || 0);
+
+              return (
+                <div
+                  key={name}
+                  className={`
+                    flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-200
+                    ${isOnline
+                      ? 'bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-900 dark:text-white'
+                      : 'bg-transparent opacity-40 grayscale'
+                    }
+                  `}
+                >
+                  {/* Icon Container */}
+                  <div className="mb-3">
+                    <div className={`
+                      w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden
+                      ${isOnline ? 'bg-white shadow-sm' : 'bg-gray-100 dark:bg-slate-800'}
+                    `}>
+                      {aggregatorLogos[normalizedName] ? (
+                        <img
+                          src={aggregatorLogos[normalizedName]}
+                          alt={name}
+                          className="w-8 h-8 object-contain"
+                        />
                       ) : (
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: aggregatorColors[name.toLowerCase()] || '#94a3b8' }} />
+                        <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm"
+                          style={{ backgroundColor: aggregatorColors[normalizedName] || '#cbd5e1' }}>
+                          {name.substring(0, 2).toUpperCase()}
+                        </div>
                       )}
-                      <span className="capitalize">{name}</span>
+                    </div>
+                  </div>
+
+                  {/* Name */}
+                  <span className="text-sm font-semibold text-center mb-0.5 whitespace-nowrap">
+                    {name}
+                  </span>
+
+                  {/* Product Count */}
+                  {isOnline ? (
+                    <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                      {count.toLocaleString()} товаров
                     </span>
-                    <span className="text-gray-500 font-medium">{data.percent}% <span className="text-[10px] opacity-60">({data.count})</span></span>
-                  </div>
-                  <div className="h-2 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-700 ease-out"
-                      style={{
-                        width: `${data.percent}%`,
-                        backgroundColor: aggregatorColors[name.toLowerCase()] || '#94a3b8'
-                      }}
-                    />
-                  </div>
+                  ) : (
+                    <span className="text-xs text-gray-400">
+                      Нет данных
+                    </span>
+                  )}
                 </div>
-              ))}
+              );
+            })}
           </div>
         </div>
       </div>

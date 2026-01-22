@@ -129,7 +129,8 @@ async def get_dashboard_stats(city: Optional[str] = Query(None)):
     market_coverage = (total_with_our / total * 100) if total > 0 else 0
     price_competitiveness = (at_top / total_with_our * 100) if total_with_our > 0 else 0
     
-    # Get aggregator stats
+    # Get aggregator stats with overlap and price info
+    # We need a more complex pipeline to check overlaps
     agg_pipeline = [
         {"$unwind": "$prices"},
         {"$match": {"prices.aggregator": {"$ne": OUR_COMPANY}}},
@@ -138,10 +139,51 @@ async def get_dashboard_stats(city: Optional[str] = Query(None)):
         agg_pipeline.append({"$match": {"prices.city": city}})
     
     agg_pipeline.extend([
-        {"$group": {
-            "_id": "$prices.aggregator",
-            "count": {"$sum": 1}
-        }}
+        {
+            "$lookup": {
+                "from": "products",
+                "localField": "_id",
+                "foreignField": "_id",
+                "as": "product_info"
+            }
+        },
+        {
+            "$project": {
+                "aggregator": "$prices.aggregator",
+                "price": "$prices.price",
+                "our_prices": {
+                    "$filter": {
+                        "input": {"$arrayElemAt": ["$product_info.prices", 0]},
+                        "as": "p",
+                        "cond": {"$eq": ["$$p.aggregator", OUR_COMPANY]}
+                    }
+                }
+            }
+        },
+        {
+            "$addFields": {
+                "our_price": {"$arrayElemAt": ["$our_prices.price", 0]},
+                "has_overlap": {"$gt": [{"$size": "$our_prices"}, 0]}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$aggregator",
+                "count": {"$sum": 1},
+                "overlap_count": {
+                    "$sum": {"$cond": ["$has_overlap", 1, 0]}
+                },
+                "price_ratios": {
+                    "$push": {
+                        "$cond": [
+                            {"$and": ["$has_overlap", {"$gt": ["$our_price", 0]}, {"$gt": ["$price", 0]}]},
+                            {"$divide": ["$price", "$our_price"]},
+                            None
+                        ]
+                    }
+                }
+            }
+        }
     ])
     
     agg_results = await db.products.aggregate(agg_pipeline).to_list(length=20)
@@ -150,10 +192,21 @@ async def get_dashboard_stats(city: Optional[str] = Query(None)):
     for agg in agg_results:
         name = agg["_id"]
         count = agg["count"]
+        overlap = agg["overlap_count"]
         percent = round((count / total * 100), 1) if total > 0 else 0
+        
+        # Calculate price index
+        ratios = [r for r in agg.get("price_ratios", []) if r is not None]
+        price_index = 0
+        if ratios:
+            avg_ratio = sum(ratios) / len(ratios)
+            price_index = round((avg_ratio - 1) * 100, 1)
+            
         aggregator_stats[name] = {
             "count": count,
-            "percent": percent
+            "percent": percent,
+            "overlap_count": overlap,
+            "price_index": price_index
         }
     
     # Get pending recommendations count
