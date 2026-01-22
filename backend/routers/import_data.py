@@ -219,6 +219,7 @@ async def get_analytics_gaps(limit: int = 100):
         {"$limit": limit},
         {
             "$project": {
+                "_id": 0,
                 "product_id": {"$toString": "$_id"},
                 "product_name": "$name",
                 "category": 1,
