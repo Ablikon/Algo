@@ -43,15 +43,21 @@ export default function Analytics() {
         analyticsAPI.getDashboard(),
         analyticsAPI.getGaps(),
         // Fetch more items and filter for those with competition to make the chart fuller
-        productsAPI.getComparison({ page: 1, page_size: 50 }),
+        productsAPI.getComparison({ page: 1, page_size: 100 }),
       ]);
       setStats(statsRes.data);
       setGaps(gapsRes.data.results || gapsRes.data);
 
-      // Filter for products that have at least one competitor price
+      // Filter for products that have the most competition (excluding our company)
       const allProds = productsRes.data.results || productsRes.data;
+      const OUR_COMPANY = 'Glovo'; // Standard aggregator name
+
       const sortedProds = [...allProds]
-        .sort((a, b) => Object.keys(b.prices || {}).length - Object.keys(a.prices || {}).length)
+        .sort((a, b) => {
+          const aCompCount = Object.keys(a.prices || {}).filter(k => k !== OUR_COMPANY).length;
+          const bCompCount = Object.keys(b.prices || {}).filter(k => k !== OUR_COMPANY).length;
+          return bCompCount - aCompCount;
+        })
         .slice(0, 5);
 
       setProducts(sortedProds);
