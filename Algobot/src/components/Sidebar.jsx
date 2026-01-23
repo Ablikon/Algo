@@ -69,7 +69,7 @@ export default function Sidebar({ onClose, isMobile = false }) {
               <TrendingUp className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">PriceAlgo</h1>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">Pricent</h1>
               <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">{t('priceAnalyst')}</p>
             </div>
           </div>
