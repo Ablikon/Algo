@@ -15,9 +15,11 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - OUR_COMPANY_AGGREGATOR=${OUR_COMPANY_AGGREGATOR:-Glovo}
+      - EXTERNAL_API_BASE=${EXTERNAL_API_BASE}
+      - EXTERNAL_API_TOKEN=${EXTERNAL_API_TOKEN}
     volumes:
       # Mount Data folder for JSON import
-      - ./Data:/app/Data:ro
+      - ./Data:/Data:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

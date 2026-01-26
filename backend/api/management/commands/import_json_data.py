@@ -171,6 +171,10 @@ class Command(BaseCommand):
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
+        return self.process_data(data, config)
+
+    def process_data(self, data, config):
+        """Process a list of product items with batch operations"""
         aggregator = self.aggregators.get(config['aggregator'].lower())
         if not aggregator:
             raise ValueError(f"Unknown aggregator: {config['aggregator']}")

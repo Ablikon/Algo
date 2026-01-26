@@ -20,6 +20,7 @@ openai>=1.10.0
 # Utilities
 python-dotenv>=1.0.0
 httpx>=0.26.0
+requests>=2.31.0
 
 # Excel/CSV export
 pandas>=2.0.0
