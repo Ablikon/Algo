@@ -28,6 +28,7 @@ import woltLogo from "../assets/Wolt_id52_mlyiE_0.svg";
 import airbaFreshLogo from "../assets/Airba Fresh_idYXu-d5px_1.svg";
 import yandexLavkaLogo from "../assets/idq0QSew-z_1768990557463.png";
 import arbuzLogo from "../assets/id-kqZgjke_1768990623965.jpeg";
+import ryadomLogo from "../assets/ryadom.png";
 
 const aggregatorColors = {
   glovo: "#00A082",
@@ -36,6 +37,7 @@ const aggregatorColors = {
   "airba fresh": "#78B833",
   "yandex lavka": "#FFCC00",
   arbuz: "#FF7F00",
+  ryadom: "#6B7280",
   kaspi: "#F14635",
 };
 
@@ -47,6 +49,7 @@ const aggregatorLogos = {
   "yandex lavka": yandexLavkaLogo,
   arbuz: arbuzLogo,
   "arbuz.kz": arbuzLogo,
+  ryadom: ryadomLogo,
 };
 
 export default function Analytics() {
@@ -80,13 +83,20 @@ export default function Analytics() {
     (stats?.products_at_top || 0) + (stats?.products_need_action || 0);
   const overlapData = stats?.aggregator_stats
     ? Object.entries(stats.aggregator_stats)
-        .map(([name, data]) => ({
-          name,
-          value: data.overlap_count || 0,
-          color:
-            aggregatorColors[name.toLowerCase().replace(".kz", "")] ||
-            "#cbd5e1",
-        }))
+        .map(([name, data]) => {
+          const normalizedKey = name.toLowerCase().replace(".kz", "").trim();
+          return {
+            name,
+            normalizedKey,
+            value: data.overlap_count || 0,
+            color: aggregatorColors[normalizedKey] || "#cbd5e1",
+          };
+        })
+        .filter(
+          (item) =>
+            item.normalizedKey !== "ryadom" &&
+            item.name.toLowerCase().trim() !== "рядом",
+        )
         .sort((a, b) => b.value - a.value)
     : [];
 
