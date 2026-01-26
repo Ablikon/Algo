@@ -1,6 +1,12 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { RefreshCw, TrendingUp, AlertCircle, ShoppingBag, ArrowRight } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import {
+  RefreshCw,
+  TrendingUp,
+  AlertCircle,
+  ShoppingBag,
+  ArrowRight,
+} from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -9,37 +15,38 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell
-} from 'recharts';
-import MatchingProgressBar from '../components/MatchingProgressBar';
-import { analyticsAPI, productsAPI } from '../services/api';
-import { useCity } from '../contexts/CityContext';
+  Cell,
+} from "recharts";
+import MatchingProgressBar from "../components/MatchingProgressBar";
+import ExternalImportProgressBar from "../components/ExternalImportProgressBar";
+import { analyticsAPI, productsAPI } from "../services/api";
+import { useCity } from "../contexts/CityContext";
 
-import glovoLogo from '../assets/glovo.jpeg';
-import magnumLogo from '../assets/Magnum_Cash_&_Carry.png';
-import woltLogo from '../assets/Wolt_id52_mlyiE_0.svg';
-import airbaFreshLogo from '../assets/Airba Fresh_idYXu-d5px_1.svg';
-import yandexLavkaLogo from '../assets/idq0QSew-z_1768990557463.png';
-import arbuzLogo from '../assets/id-kqZgjke_1768990623965.jpeg';
+import glovoLogo from "../assets/glovo.jpeg";
+import magnumLogo from "../assets/Magnum_Cash_&_Carry.png";
+import woltLogo from "../assets/Wolt_id52_mlyiE_0.svg";
+import airbaFreshLogo from "../assets/Airba Fresh_idYXu-d5px_1.svg";
+import yandexLavkaLogo from "../assets/idq0QSew-z_1768990557463.png";
+import arbuzLogo from "../assets/id-kqZgjke_1768990623965.jpeg";
 
 const aggregatorColors = {
-  glovo: '#00A082',
-  magnum: '#EE1C25',
-  wolt: '#00C2E8',
-  'airba fresh': '#78B833',
-  'yandex lavka': '#FFCC00',
-  arbuz: '#FF7F00',
-  kaspi: '#F14635',
+  glovo: "#00A082",
+  magnum: "#EE1C25",
+  wolt: "#00C2E8",
+  "airba fresh": "#78B833",
+  "yandex lavka": "#FFCC00",
+  arbuz: "#FF7F00",
+  kaspi: "#F14635",
 };
 
 const aggregatorLogos = {
   glovo: glovoLogo,
   magnum: magnumLogo,
   wolt: woltLogo,
-  'airba fresh': airbaFreshLogo,
-  'yandex lavka': yandexLavkaLogo,
+  "airba fresh": airbaFreshLogo,
+  "yandex lavka": yandexLavkaLogo,
   arbuz: arbuzLogo,
-  'arbuz.kz': arbuzLogo,
+  "arbuz.kz": arbuzLogo,
 };
 
 export default function Analytics() {
@@ -58,27 +65,33 @@ export default function Analytics() {
     try {
       const [statsRes, gapsRes] = await Promise.all([
         analyticsAPI.getDashboard(),
-        analyticsAPI.getGaps({ page_size: 5 })
+        analyticsAPI.getGaps({ page_size: 5 }),
       ]);
       setStats(statsRes.data);
       setGaps(gapsRes.data.results || []);
     } catch (error) {
-      console.error('Error fetching analytics data:', error);
+      console.error("Error fetching analytics data:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  const totalOurProducts =
+    (stats?.products_at_top || 0) + (stats?.products_need_action || 0);
+  const overlapData = stats?.aggregator_stats
+    ? Object.entries(stats.aggregator_stats)
+        .map(([name, data]) => ({
+          name,
+          value: data.overlap_count || 0,
+          color:
+            aggregatorColors[name.toLowerCase().replace(".kz", "")] ||
+            "#cbd5e1",
+        }))
+        .sort((a, b) => b.value - a.value)
+    : [];
 
-  const totalOurProducts = (stats?.products_at_top || 0) + (stats?.products_need_action || 0);
-  const overlapData = stats?.aggregator_stats ? Object.entries(stats.aggregator_stats).map(([name, data]) => ({
-    name,
-    value: data.overlap_count || 0,
-    color: aggregatorColors[name.toLowerCase().replace('.kz', '')] || '#cbd5e1',
-  })).sort((a, b) => b.value - a.value) : [];
-
-  const gridColor = '#f1f5f9';
-  const textColor = '#94a3b8';
+  const gridColor = "#f1f5f9";
+  const textColor = "#94a3b8";
 
   const formatPrice = (value) => `${value?.toLocaleString()} ₸`;
 
@@ -87,7 +100,9 @@ export default function Analytics() {
       <div className="flex items-center justify-center h-[80vh]">
         <div className="flex flex-col items-center gap-4">
           <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin" />
-          <p className="text-gray-500 font-medium italic">Загрузка аналитики...</p>
+          <p className="text-gray-500 font-medium italic">
+            Загрузка аналитики...
+          </p>
         </div>
       </div>
     );
@@ -98,8 +113,12 @@ export default function Analytics() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white">Аналитика рынка</h1>
-          <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 mt-1">Детальный разбор ценовых позиций</p>
+          <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white">
+            Аналитика рынка
+          </h1>
+          <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 mt-1">
+            Детальный разбор ценовых позиций
+          </p>
         </div>
         <button
           onClick={fetchData}
@@ -111,6 +130,7 @@ export default function Analytics() {
       </div>
 
       <MatchingProgressBar />
+      <ExternalImportProgressBar />
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 gap-4 md:gap-8 mb-6 md:mb-10">
@@ -126,12 +146,18 @@ export default function Analytics() {
                 <ShoppingBag className="w-4 h-4 md:w-5 md:h-5 text-cyan-600" />
               </div>
               <div>
-                <h3 className="text-base md:text-xl font-bold text-gray-900 dark:text-white">Упущенные возможности</h3>
-                <p className="text-xs md:text-sm text-gray-500 hidden sm:block">Товары, которые есть у конкурентов</p>
+                <h3 className="text-base md:text-xl font-bold text-gray-900 dark:text-white">
+                  Упущенные возможности
+                </h3>
+                <p className="text-xs md:text-sm text-gray-500 hidden sm:block">
+                  Товары, которые есть у конкурентов
+                </p>
               </div>
             </div>
             <div className="px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl self-start">
-              <p className="text-[10px] md:text-xs text-emerald-700 dark:text-emerald-400 font-semibold">ТОП-5</p>
+              <p className="text-[10px] md:text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
+                ТОП-5
+              </p>
             </div>
           </div>
 
@@ -139,8 +165,10 @@ export default function Analytics() {
             <div className="flex items-start gap-3">
               <AlertCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed">
-                <span className="font-bold">Анализ пробелов:</span> Здесь собраны товары, которые представлены у большинства ваших конкурентов.
-                Добавление этих позиций поможет увеличить ваш охват и привлечь новых покупателей.
+                <span className="font-bold">Анализ пробелов:</span> Здесь
+                собраны товары, которые представлены у большинства ваших
+                конкурентов. Добавление этих позиций поможет увеличить ваш охват
+                и привлечь новых покупателей.
               </p>
             </div>
           </div>
@@ -149,22 +177,33 @@ export default function Analytics() {
             <table className="w-full">
               <thead>
                 <tr className="border-b-2 border-gray-200 dark:border-slate-700">
-                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 dark:text-gray-300">Товар</th>
-                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 dark:text-gray-300">Категория</th>
-                  <th className="text-center py-3 px-4 text-sm font-bold text-gray-700 dark:text-gray-300">Популярность</th>
-                  <th className="text-right py-3 px-4 text-sm font-bold text-gray-700 dark:text-gray-300">Мин. цена</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 dark:text-gray-300">
+                    Товар
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 dark:text-gray-300">
+                    Категория
+                  </th>
+                  <th className="text-center py-3 px-4 text-sm font-bold text-gray-700 dark:text-gray-300">
+                    Популярность
+                  </th>
+                  <th className="text-right py-3 px-4 text-sm font-bold text-gray-700 dark:text-gray-300">
+                    Мин. цена
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {gaps.map((item, idx) => (
-                  <tr key={idx} className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                  <tr
+                    key={idx}
+                    className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+                  >
                     <td className="py-4 px-4">
                       <div className="font-semibold text-gray-900 dark:text-white text-sm max-w-[300px] truncate">
                         {item.product_name}
                       </div>
                     </td>
                     <td className="py-4 px-4 text-sm text-gray-500 dark:text-gray-400">
-                      {item.category || '—'}
+                      {item.category || "—"}
                     </td>
                     <td className="py-4 px-4 text-center">
                       <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-400 font-bold text-xs">
@@ -189,8 +228,7 @@ export default function Analytics() {
             </div>
           )}
 
-          <div className="mt-6 flex justify-end">
-          </div>
+          <div className="mt-6 flex justify-end"></div>
         </motion.div>
 
         {/* Chart 2: Market Overlap */}
@@ -206,12 +244,18 @@ export default function Analytics() {
                 <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-emerald-600" />
               </div>
               <div>
-                <h3 className="text-base md:text-xl font-bold text-gray-900 dark:text-white">Пересечение ассортимента</h3>
-                <p className="text-xs md:text-sm text-gray-500 hidden sm:block">Сколько ваших товаров есть у конкурентов</p>
+                <h3 className="text-base md:text-xl font-bold text-gray-900 dark:text-white">
+                  Пересечение ассортимента
+                </h3>
+                <p className="text-xs md:text-sm text-gray-500 hidden sm:block">
+                  Сколько ваших товаров есть у конкурентов
+                </p>
               </div>
             </div>
             <div className="px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl self-start">
-              <p className="text-[10px] md:text-xs text-emerald-700 dark:text-emerald-400 font-semibold">{totalOurProducts} товаров</p>
+              <p className="text-[10px] md:text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
+                {totalOurProducts} товаров
+              </p>
             </div>
           </div>
 
@@ -219,27 +263,39 @@ export default function Analytics() {
             <div className="flex items-start gap-3">
               <AlertCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed">
-                <span className="font-bold">Что означает график:</span> показывает, какая часть вашего ассортимента дублируется у конкурентов.
-                Чем больше пересечение — тем сильнее конкуренция за одних и тех же покупателей.
+                <span className="font-bold">Что означает график:</span>{" "}
+                показывает, какая часть вашего ассортимента дублируется у
+                конкурентов. Чем больше пересечение — тем сильнее конкуренция за
+                одних и тех же покупателей.
               </p>
             </div>
           </div>
 
           <div className="space-y-6 mt-4">
             {overlapData.map((item) => {
-              const normalizedName = item.name.toLowerCase().replace('.kz', '');
-              const percentage = Math.min(Math.round((item.value / (totalOurProducts || 1)) * 100), 100);
+              const normalizedName = item.name.toLowerCase().replace(".kz", "");
+              const percentage = Math.min(
+                Math.round((item.value / (totalOurProducts || 1)) * 100),
+                100,
+              );
 
               return (
                 <div key={item.name} className="flex items-center gap-4 group">
                   {/* Logo Container */}
                   <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center p-2 border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden flex-shrink-0 transition-transform group-hover:scale-105">
                     {aggregatorLogos[normalizedName] ? (
-                      <img src={aggregatorLogos[normalizedName]} alt={item.name} className="w-full h-full object-contain" />
+                      <img
+                        src={aggregatorLogos[normalizedName]}
+                        alt={item.name}
+                        className="w-full h-full object-contain"
+                      />
                     ) : (
                       <div
                         className="w-full h-full flex items-center justify-center text-white font-bold text-xs rounded-lg"
-                        style={{ backgroundColor: aggregatorColors[normalizedName] || '#cbd5e1' }}
+                        style={{
+                          backgroundColor:
+                            aggregatorColors[normalizedName] || "#cbd5e1",
+                        }}
                       >
                         {item.name.substring(0, 2).toUpperCase()}
                       </div>
@@ -264,7 +320,11 @@ export default function Analytics() {
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${percentage}%` }}
-                        transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
+                        transition={{
+                          duration: 1,
+                          delay: 0.2,
+                          ease: "easeOut",
+                        }}
                         className="h-full rounded-full"
                         style={{ backgroundColor: item.color }}
                       />
@@ -286,7 +346,9 @@ export default function Analytics() {
           {overlapData.length > 0 && (
             <div className="mt-8 pt-6 border-t border-gray-100 dark:border-slate-700">
               <div className="p-4 bg-gray-50/50 dark:bg-slate-700/30 rounded-2xl inline-block min-w-[200px]">
-                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Макс. пересечение</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">
+                  Макс. пересечение
+                </p>
                 <p className="text-sm font-black text-gray-900 dark:text-white truncate">
                   {overlapData[0]?.name}
                 </p>

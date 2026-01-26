@@ -41,6 +41,7 @@ AGGREGATOR_DISPLAY_NAMES = {
     'magnum_almaty': 'Magnum',
     'magnum_astana': 'Magnum',
     'airba': 'Airba Fresh',
+    'ryadom': 'Рядом',
 }
 
 # Colors for UI
@@ -52,13 +53,14 @@ AGGREGATOR_COLORS = {
     'magnum_almaty': '#EE1C25',
     'magnum_astana': '#EE1C25',
     'airba': '#78B833',
+    'ryadom': '#6B7280',
 }
 
 
 class DataImporter:
     """Universal JSON data importer for all aggregators"""
-    
-    def __init__(self, db, data_path: Path):
+
+    def __init__(self, db, data_path: Optional[Path] = None):
         self.db = db
         self.data_path = data_path
         self.stats = {
@@ -69,7 +71,7 @@ class DataImporter:
             'by_category': {}
         }
         self.error_messages = []
-    
+
     async def import_all(
         self,
         aggregators: Optional[List[str]] = None,
@@ -78,39 +80,42 @@ class DataImporter:
     ) -> Dict[str, Any]:
         """
         Import all products from JSON files.
-        
+
         Args:
             aggregators: List of aggregator slugs to import, None = all
             limit_per_aggregator: Max products per aggregator, None = all
             dry_run: If True, only count without saving
         """
-        
+
         if aggregators is None:
             aggregators = list(AGGREGATOR_FILES.keys())
-        
+
+        if self.data_path is None:
+            raise ValueError("Data path is not configured for JSON import")
+
         # Ensure aggregators exist in DB
         await self._ensure_aggregators()
-        
+
         # Process each aggregator
         for agg_slug in aggregators:
             if agg_slug not in AGGREGATOR_FILES:
                 self.error_messages.append(f"Unknown aggregator: {agg_slug}")
                 continue
-            
+
             filepath = self.data_path / AGGREGATOR_FILES[agg_slug]
             if not filepath.exists():
                 self.error_messages.append(f"File not found: {filepath}")
                 continue
-            
+
             logger.info(f"📥 Importing from {agg_slug}...")
-            
+
             await self._import_aggregator_file(
                 filepath=filepath,
                 agg_slug=agg_slug,
                 limit=limit_per_aggregator,
                 dry_run=dry_run
             )
-        
+
         return {
             'status': 'completed' if not self.error_messages else 'completed_with_errors',
             'total_read': self.stats['total_read'],
@@ -120,7 +125,7 @@ class DataImporter:
             'by_category': self.stats['by_category'],
             'error_messages': self.error_messages[:20]  # Limit error list
         }
-    
+
     async def _ensure_aggregators(self):
         """Create aggregators in DB if not exist"""
         for agg_slug, display_name in AGGREGATOR_DISPLAY_NAMES.items():
@@ -133,7 +138,7 @@ class DataImporter:
                 }},
                 upsert=True
             )
-    
+
     async def _import_aggregator_file(
         self,
         filepath: Path,
@@ -142,77 +147,77 @@ class DataImporter:
         dry_run: bool
     ):
         """Import products from a single aggregator JSON file"""
-        
+
         display_name = AGGREGATOR_DISPLAY_NAMES.get(agg_slug, agg_slug)
         self.stats['by_aggregator'][display_name] = 0
-        
+
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            
+
             if not isinstance(data, list):
                 data = [data]
-            
+
             # Determine city from aggregator slug
             city = self._get_city_from_slug(agg_slug)
-            
+
             count = 0
             batch = []
             batch_size = 500  # Process in batches for performance
-            
+
             for item in data:
                 self.stats['total_read'] += 1
-                
+
                 # Parse product
                 parsed = self._parse_product(item, agg_slug)
-                
+
                 if not parsed.get('name'):
                     self.stats['errors'] += 1
                     continue
-                
+
                 if limit and count >= limit:
                     break
-                
+
                 if not dry_run:
                     batch.append({
                         'parsed': parsed,
                         'aggregator': display_name,
                         'city': city or parsed.get('city')
                     })
-                    
+
                     if len(batch) >= batch_size:
                         await self._process_batch(batch)
                         batch = []
-                
+
                 count += 1
                 self.stats['by_aggregator'][display_name] = count
-                
+
                 # Track categories
                 category = parsed.get('category') or 'Без категории'
                 if category not in self.stats['by_category']:
                     self.stats['by_category'][category] = 0
                 self.stats['by_category'][category] += 1
-            
+
             # Process remaining batch
             if batch and not dry_run:
                 await self._process_batch(batch)
-            
+
             self.stats['total_imported'] += count
             logger.info(f"✅ {display_name}: {count} products imported")
-            
+
         except Exception as e:
             logger.error(f"Error importing {agg_slug}: {e}")
             self.error_messages.append(f"Error in {agg_slug}: {str(e)}")
             self.stats['errors'] += 1
-    
+
     async def _process_batch(self, batch: List[Dict]):
         """Process a batch of products - upsert into MongoDB"""
-        
+
         for item in batch:
             parsed = item['parsed']
             aggregator = item['aggregator']
             city = item['city']
-            
+
             # Build price entry
             price_entry = {
                 'aggregator': aggregator,
@@ -222,20 +227,21 @@ class DataImporter:
                 'is_available': parsed.get('is_available', True),
                 'external_url': parsed.get('external_url'),
                 'external_id': parsed.get('external_id'),
+                'matched_uuid': parsed.get('matched_uuid'),
                 'updated_at': datetime.utcnow()
             }
-            
+
             # Check if product exists (by name - simplified matching)
             existing = await self.db.products.find_one({'name': parsed['name']})
-            
+
             if existing:
                 # Update: add or update price for this aggregator
                 prices = existing.get('prices', [])
-                
+
                 # Remove existing price from same aggregator
                 prices = [p for p in prices if p.get('aggregator') != aggregator]
                 prices.append(price_entry)
-                
+
                 await self.db.products.update_one(
                     {'_id': existing['_id']},
                     {'$set': {
@@ -262,15 +268,15 @@ class DataImporter:
                     'created_at': datetime.utcnow(),
                     'updated_at': datetime.utcnow()
                 }
-                
+
                 await self.db.products.insert_one(doc)
-    
+
     def _parse_product(self, data: Dict, agg_slug: str) -> Dict:
         """
         Parse product from any aggregator format.
         Handles different field names across aggregators.
         """
-        
+
         result = {
             'name': None,
             'brand': None,
@@ -283,25 +289,26 @@ class DataImporter:
             'image_url': None,
             'external_url': None,
             'external_id': None,
+            'matched_uuid': None,
             'city': None,
             'country': None,
             'is_available': True,
         }
-        
+
         # Name - try multiple fields
         result['name'] = (
-            data.get('title') or 
-            data.get('name') or 
+            data.get('title') or
+            data.get('name') or
             data.get('product_name') or
             data.get('rawData', {}).get('name')
         )
-        
+
         # Brand
         result['brand'] = (
             data.get('brand') or
             data.get('rawData', {}).get('brandName')
         )
-        
+
         # Category - use raw category from source
         category_raw = (
             data.get('categoryName') or
@@ -310,13 +317,13 @@ class DataImporter:
             data.get('rawData', {}).get('catalogName') or
             data.get('rawData', {}).get('categoryName')
         )
-        
+
         if category_raw:
             # Use first level as category, rest as subcategory
             parts = str(category_raw).split('/')
             result['category'] = parts[0].strip() if parts else category_raw
             result['subcategory'] = parts[-1].strip() if len(parts) > 1 else None
-        
+
         # Price
         price = (
             data.get('cost') or
@@ -329,7 +336,7 @@ class DataImporter:
                 result['price'] = float(price)
             except:
                 pass
-        
+
         # Original price
         orig_price = (
             data.get('prev_cost') or
@@ -342,12 +349,12 @@ class DataImporter:
                 result['original_price'] = float(orig_price)
             except:
                 pass
-        
+
         # Weight - extract from various fields
         weight_val, weight_unit = self._extract_weight(data)
         result['weight_value'] = weight_val
         result['weight_unit'] = weight_unit
-        
+
         # Image
         result['image_url'] = (
             data.get('url_picture') or
@@ -359,25 +366,30 @@ class DataImporter:
             result['image_url'] = result['image_url'][0] if result['image_url'] else None
         if isinstance(result['image_url'], dict):
             result['image_url'] = result['image_url'].get('url')
-        
+
         # External URL and ID
         result['external_url'] = data.get('url') or data.get('productUrl')
         result['external_id'] = str(
-            data.get('product_id') or 
-            data.get('id') or 
+            data.get('product_id') or
+            data.get('id') or
             data.get('_id', {}).get('$oid', '') or
             ''
         )
-        
+        result['matched_uuid'] = (
+            data.get('matched_uuid')
+            or data.get('matched_id')
+            or data.get('matchedId')
+        )
+
         # City
         result['city'] = (data.get('city') or '').lower() or None
-        
+
         # Availability
         result['is_available'] = (
-            data.get('available', True) and 
+            data.get('available', True) and
             data.get('inStock', True)
         )
-        
+
         # Country
         result['country'] = (
             data.get('country') or
@@ -386,12 +398,12 @@ class DataImporter:
             data.get('rawData', {}).get('country') or
             data.get('rawData', {}).get('manufacturer', {}).get('country')
         )
-        
+
         return result
-    
+
     def _extract_weight(self, data: Dict) -> tuple:
         """Extract weight value and unit from product data"""
-        
+
         # Try multiple fields
         weight_sources = [
             data.get('title', ''),
@@ -401,11 +413,11 @@ class DataImporter:
             data.get('measure', ''),
             str(data.get('rawData', {}).get('weight', ''))
         ]
-        
+
         for source in weight_sources:
             if not source:
                 continue
-            
+
             # Extract multiplier (e.g., "2 x 500ml")
             multiplier = 1
             mul_match = re.search(r'(\d+)\s*[xхXХ]\s+', str(source))
@@ -414,28 +426,28 @@ class DataImporter:
                     multiplier = int(mul_match.group(1))
                 except:
                     pass
-            
+
             # Extract weight/volume
             match = re.search(
                 r'(\d+[.,]?\d*)\s*(г|кг|л|мл|g|kg|l|ml|шт|pcs)\b',
                 str(source).lower()
             )
-            
+
             if match:
                 try:
                     value = float(match.group(1).replace(',', '.')) * multiplier
                     unit = match.group(2)
-                    
+
                     # Normalize units
                     unit_map = {'г': 'g', 'кг': 'kg', 'л': 'l', 'мл': 'ml', 'шт': 'pcs'}
                     unit = unit_map.get(unit, unit)
-                    
+
                     return value, unit
                 except:
                     pass
-        
+
         return None, None
-    
+
     def _get_city_from_slug(self, agg_slug: str) -> Optional[str]:
         """Get city from aggregator slug"""
         if 'astana' in agg_slug:

@@ -1,16 +1,22 @@
-import { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ThemeProvider } from './contexts/ThemeContext';
-import { LanguageProvider } from './contexts/LanguageContext';
-import { CityProvider } from './contexts/CityContext';
-import Sidebar from './components/Sidebar';
-import MobileHeader from './components/MobileHeader';
-import Dashboard from './pages/Dashboard';
-import Comparison from './pages/Comparison';
-import Recommendations from './pages/Recommendations';
-import Analytics from './pages/Analytics';
-import DatabaseView from './pages/DatabaseView';
+import { useState } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
+import { CityProvider } from "./contexts/CityContext";
+import Sidebar from "./components/Sidebar";
+import MobileHeader from "./components/MobileHeader";
+import Dashboard from "./pages/Dashboard";
+import Comparison from "./pages/Comparison";
+import Recommendations from "./pages/Recommendations";
+import Analytics from "./pages/Analytics";
+import DatabaseView from "./pages/DatabaseView";
+import MappingReview from "./pages/MappingReview";
 
 function AppContent() {
   const location = useLocation();
@@ -40,7 +46,7 @@ function AppContent() {
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="lg:hidden fixed left-0 top-0 z-50 h-full"
             >
               <Sidebar onClose={() => setSidebarOpen(false)} isMobile />
@@ -69,6 +75,7 @@ function AppContent() {
               <Route path="/recommendations" element={<Recommendations />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/database" element={<DatabaseView />} />
+              <Route path="/mapping-review" element={<MappingReview />} />
             </Routes>
           </motion.div>
         </AnimatePresence>

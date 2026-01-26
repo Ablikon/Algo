@@ -11,11 +11,15 @@ import os
 import logging
 import json
 import tempfile
+from typing import Optional
 
 from database import get_db
 from models import ImportRequest, ImportResult
 from services.data_importer import DataImporter
 from services.product_mapper import MATCHING_STATUS
+from services.external_import import import_from_external_api, get_external_import_status
+from services.ryadom_importer import RyadomCsvImporter
+from services.mapping_review import MappingReviewService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -27,7 +31,7 @@ DATA_PATH = Path(__file__).parent.parent.parent / "Data"
 @router.get("/import/json/info/")
 async def get_json_import_info():
     """Get information about available JSON files"""
-    
+
     aggregator_files = {
         'glovo': 'glovo.glovo_products.json',
         'arbuz': 'arbuz_kz.arbuz_products.json',
@@ -37,7 +41,7 @@ async def get_json_import_info():
         'magnum_astana': 'magnum_astana.json',
         'airba': 'airba_fresh.airba_products.json',
     }
-    
+
     files = []
     for agg, filename in aggregator_files.items():
         filepath = DATA_PATH / filename
@@ -55,7 +59,7 @@ async def get_json_import_info():
                 'filename': filename,
                 'exists': False
             })
-    
+
     return {
         'files': files,
         'data_path': str(DATA_PATH)
@@ -149,6 +153,214 @@ async def upload_json_file(
     except Exception as e:
         logger.error(f"Upload import error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/import/ryadom-csv/")
+async def import_ryadom_csv(
+    background_tasks: BackgroundTasks,
+    filename: str = "bq-results-20260120-103930-1768905602731.csv",
+    dry_run: bool = False,
+    limit: Optional[int] = None,
+    city: str = "almaty",
+):
+    db = get_db()
+    aggregator_name = os.getenv("OUR_COMPANY_AGGREGATOR", "Рядом")
+    importer = RyadomCsvImporter(db, aggregator=aggregator_name, city=city)
+    file_path = DATA_PATH / filename
+
+    try:
+        result = await importer.import_csv(
+            file_path=file_path,
+            dry_run=dry_run,
+            limit=limit,
+        )
+        if not dry_run:
+            background_tasks.add_task(update_category_counts, db)
+        return result
+    except Exception as e:
+        logger.error(f"Ryadom CSV import error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/import/mapped/review-file/")
+async def review_mapped_file(
+    filename: str,
+    source_aggregator: str = "Рядом",
+    matched_aggregator: Optional[str] = None,
+    limit: Optional[int] = None,
+):
+    db = get_db()
+    service = MappingReviewService(db)
+    file_path = DATA_PATH / filename
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {filename}")
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to read mapped file: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if isinstance(data, dict):
+        data = data.get("data") or data.get("items") or data.get("products") or []
+    if not isinstance(data, list):
+        raise HTTPException(status_code=400, detail="Invalid mapped file format")
+
+    if limit:
+        data = data[:limit]
+
+    return await service.review_mapped_items(
+        mapped_items=data,
+        source_aggregator=source_aggregator,
+        matched_aggregator=matched_aggregator,
+    )
+
+
+@router.post("/import/mapped/review-upload/")
+async def review_mapped_upload(
+    file: UploadFile = File(...),
+    source_aggregator: str = "Рядом",
+    matched_aggregator: Optional[str] = None,
+    limit: Optional[int] = None,
+):
+    db = get_db()
+    service = MappingReviewService(db)
+
+    try:
+        content = await file.read()
+        data = json.loads(content.decode("utf-8"))
+    except Exception as e:
+        logger.error(f"Mapped upload decode error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid JSON file")
+
+    if isinstance(data, dict):
+        data = data.get("data") or data.get("items") or data.get("products") or []
+    if not isinstance(data, list):
+        raise HTTPException(status_code=400, detail="Invalid mapped file format")
+
+    if limit:
+        data = data[:limit]
+
+    return await service.review_mapped_items(
+        mapped_items=data,
+        source_aggregator=source_aggregator,
+        matched_aggregator=matched_aggregator,
+    )
+
+
+@router.post("/import/mapped/review-from-api/")
+async def review_mapped_from_api(
+    file_id: str,
+    source_aggregator: str = "Рядом",
+    matched_aggregator: Optional[str] = None,
+    limit: Optional[int] = None,
+):
+    """
+    Review mapped file directly from external API.
+    file_id examples: wolt_wolt market_almaty_mapped, yandex_lavka_almaty_mapped
+    """
+    import httpx
+    from urllib.parse import quote
+
+    EXTERNAL_API_BASE = os.getenv("EXTERNAL_API_BASE")
+    EXTERNAL_API_TOKEN = os.getenv("EXTERNAL_API_TOKEN")
+
+    if not EXTERNAL_API_BASE or not EXTERNAL_API_TOKEN:
+        raise HTTPException(status_code=500, detail="External API not configured")
+
+    db = get_db()
+    service = MappingReviewService(db)
+
+    headers = {"Authorization": f"Bearer {EXTERNAL_API_TOKEN}"}
+    encoded_id = quote(str(file_id), safe="")
+
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            response = await client.get(
+                f"{EXTERNAL_API_BASE}/api/csv-data/{encoded_id}",
+                headers=headers
+            )
+            response.raise_for_status()
+            payload = response.json()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=f"API error: {e.response.text}")
+    except Exception as e:
+        logger.error(f"Failed to fetch mapped file from API: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    data = payload.get("data") or payload.get("items") or payload.get("products") or []
+    if not isinstance(data, list):
+        raise HTTPException(status_code=400, detail="Invalid mapped file format from API")
+
+    if limit:
+        data = data[:limit]
+
+    return await service.review_mapped_items(
+        mapped_items=data,
+        source_aggregator=source_aggregator,
+        matched_aggregator=matched_aggregator,
+    )
+
+
+@router.get("/import/mapped/api-files/")
+async def list_mapped_api_files():
+    """List available mapped files from external API"""
+    import httpx
+
+    EXTERNAL_API_BASE = os.getenv("EXTERNAL_API_BASE")
+    EXTERNAL_API_TOKEN = os.getenv("EXTERNAL_API_TOKEN")
+
+    if not EXTERNAL_API_BASE or not EXTERNAL_API_TOKEN:
+        raise HTTPException(status_code=500, detail="External API not configured")
+
+    headers = {"Authorization": f"Bearer {EXTERNAL_API_TOKEN}"}
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(f"{EXTERNAL_API_BASE}/api/csv-files", headers=headers)
+            response.raise_for_status()
+            payload = response.json()
+    except Exception as e:
+        logger.error(f"Failed to fetch file list from API: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    files = payload.get("files", []) if isinstance(payload, dict) else []
+    # Filter only mapped files
+    mapped_files = [f for f in files if "mapped" in f.get("id", "").lower()]
+
+    return {
+        "success": True,
+        "count": len(mapped_files),
+        "files": mapped_files
+    }
+
+
+@router.post("/import/external/run/")
+async def run_external_import(
+    background_tasks: BackgroundTasks,
+    dry_run: bool = False,
+    limit_per_file: Optional[int] = None,
+    file_id: Optional[str] = None
+):
+    status = get_external_import_status()
+    if status.get("is_running"):
+        return {"result": "already_running", "status": status}
+
+    file_ids = [file_id] if file_id else None
+    background_tasks.add_task(
+        import_from_external_api,
+        file_ids=file_ids,
+        dry_run=dry_run,
+        limit_per_file=limit_per_file
+    )
+    return {"result": "started", "status": "background_task_initiated"}
+
+
+@router.get("/import/external/progress")
+async def get_external_import_progress():
+    return get_external_import_status()
 
 
 def _detect_aggregator(filename: str, data: list) -> str:
@@ -273,18 +485,18 @@ async def run_product_matching(
     Uses AI (ChatGPT) to match products across aggregators.
     """
     from services.product_mapper import ProductMapper
-    
+
     db = get_db()
     mapper = ProductMapper(db)
-    
+
     db = get_db()
     mapper = ProductMapper(db)
-    
+
     if MATCHING_STATUS['is_running']:
         return {"result": "already_running", "status": MATCHING_STATUS}
 
     background_tasks.add_task(mapper.run_matching, batch_size, use_ai)
-    
+
     return {"result": "started", "status": "background_task_initiated"}
 
 @router.get("/import/matching-progress")
@@ -301,7 +513,7 @@ async def update_category_counts(db):
             {"$group": {"_id": "$category", "count": {"$sum": 1}}}
         ]
         results = await db.products.aggregate(pipeline).to_list(length=1000)
-        
+
         for r in results:
             if r["_id"]:
                 await db.categories.update_one(
@@ -317,22 +529,22 @@ async def update_category_counts(db):
                     },
                     upsert=True
                 )
-        
+
         # Get counts by subcategory
         pipeline = [
             {"$group": {"_id": {"sub": "$subcategory", "parent": "$category"}, "count": {"$sum": 1}}}
         ]
         results = await db.products.aggregate(pipeline).to_list(length=1000)
-        
+
         for r in results:
             sub = r["_id"].get("sub")
             parent = r["_id"].get("parent")
-            
+
             if sub and sub != parent:
                 # Find parent id
                 parent_doc = await db.categories.find_one({"name": parent})
                 parent_id = str(parent_doc["_id"]) if parent_doc else None
-                
+
                 await db.categories.update_one(
                     {"name": sub},
                     {
@@ -348,7 +560,7 @@ async def update_category_counts(db):
                     },
                     upsert=True
                 )
-        
+
         logger.info("Category counts updated")
     except Exception as e:
         logger.error(f"Error updating category counts: {e}")
@@ -358,9 +570,9 @@ async def update_category_counts(db):
 async def get_analytics_gaps(limit: int = 100):
     """Get products that we don't have but competitors do"""
     db = get_db()
-    
+
     OUR_COMPANY = os.getenv("OUR_COMPANY_AGGREGATOR", "Glovo")
-    
+
     pipeline = [
         {
             "$addFields": {
@@ -407,9 +619,9 @@ async def get_analytics_gaps(limit: int = 100):
             }
         }
     ]
-    
+
     gaps = await db.products.aggregate(pipeline).to_list(length=limit)
-    
+
     return gaps
 
 
@@ -417,9 +629,9 @@ async def get_analytics_gaps(limit: int = 100):
 async def get_price_history(limit: int = 50):
     """Get recent price changes"""
     db = get_db()
-    
+
     history = await db.price_history.find().sort("changed_at", -1).limit(limit).to_list(length=limit)
-    
+
     return [{**h, "_id": str(h["_id"])} for h in history]
 
 
@@ -427,9 +639,9 @@ async def get_price_history(limit: int = 50):
 async def export_products():
     """Export products to JSON (simplified Excel alternative)"""
     db = get_db()
-    
+
     products = await db.products.find().limit(5000).to_list(length=5000)
-    
+
     export_data = []
     for p in products:
         row = {
@@ -439,10 +651,10 @@ async def export_products():
             "brand": p.get("brand"),
             "weight": f"{p.get('weight_value', '')} {p.get('weight_unit', '')}".strip(),
         }
-        
+
         for price in p.get("prices", []):
             row[price["aggregator"]] = price.get("price")
-        
+
         export_data.append(row)
-    
+
     return export_data
