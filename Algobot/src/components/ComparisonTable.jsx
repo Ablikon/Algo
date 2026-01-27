@@ -139,7 +139,7 @@ export default function ComparisonTable({ products, compact = false, showNormali
   const displayProducts = compact ? products.slice(0, 5) : products;
 
   // Use exact names for sorting
-  const defaultOrder = ['Glovo', 'Magnum', 'Wolt', 'Yandex Lavka', 'Airba Fresh', 'Arbuz.kz'];
+  const defaultOrder = ['Рядом', 'Magnum', 'Wolt', 'Yandex Lavka', 'Airba Fresh', 'Arbuz.kz', 'Glovo'];
 
   const sortedAggregators = [
     ...defaultOrder.filter(name => allAggregatorNames.includes(name)),

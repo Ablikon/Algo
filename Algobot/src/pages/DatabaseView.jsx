@@ -7,7 +7,7 @@ import {
   ChevronRight,
   Circle,
   Upload,
-  BrainCircuit,
+  SearchCheck,
 } from "lucide-react";
 import {
   aggregatorsAPI,
@@ -17,6 +17,7 @@ import {
   importAPI,
 } from "../services/api";
 import BulkImport from "../components/BulkImport";
+import MatchingProgressBar from "../components/MatchingProgressBar";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useCity } from "../contexts/CityContext";
 
@@ -75,7 +76,7 @@ export default function DatabaseView() {
       console.error("Error starting matching:", error);
       alert(
         "Ошибка при запуске матчинга: " +
-          (error.response?.data?.detail || error.message),
+        (error.response?.data?.detail || error.message),
       );
     }
   };
@@ -92,7 +93,7 @@ export default function DatabaseView() {
       console.error("Error starting external import:", error);
       alert(
         "Ошибка при запуске импорта: " +
-          (error.response?.data?.detail || error.message),
+        (error.response?.data?.detail || error.message),
       );
     }
   };
@@ -167,11 +168,10 @@ export default function DatabaseView() {
                   </td>
                   <td className="py-3 px-4">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        item.is_our_company
-                          ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
-                          : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400"
-                      }`}
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${item.is_our_company
+                        ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                        : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400"
+                        }`}
                     >
                       {item.is_our_company ? t("yes") : t("no")}
                     </span>
@@ -241,7 +241,7 @@ export default function DatabaseView() {
                   {t("category")}
                 </th>
                 <th className="py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
-                  Glovo
+                  Рядом
                 </th>
                 <th className="py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
                   Yandex
@@ -273,9 +273,9 @@ export default function DatabaseView() {
                     {item.category_name}
                   </td>
                   <td className="py-3 px-4">
-                    {item.prices?.glovo?.price ? (
+                    {item.prices?.["Рядом"]?.price || item.prices?.["Ryadom"]?.price ? (
                       <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                        {item.prices.glovo.price}₸
+                        {item.prices?.["Рядом"]?.price || item.prices?.["Ryadom"]?.price}₸
                       </span>
                     ) : (
                       <span className="text-gray-400 dark:text-gray-500">
@@ -345,11 +345,11 @@ export default function DatabaseView() {
         <div className="flex flex-wrap gap-2 md:gap-3">
           <button
             onClick={handleRunMatching}
-            className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-colors"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-colors"
           >
-            <BrainCircuit className="w-4 h-4" />
-            <span className="hidden sm:inline">AI Матчинг</span>
-            <span className="sm:hidden">AI</span>
+            <SearchCheck className="w-4 h-4" />
+            <span className="hidden sm:inline">Запустить матчинг</span>
+            <span className="sm:hidden">Матчинг</span>
           </button>
           <button
             onClick={handleRunExternalImport}
@@ -361,11 +361,10 @@ export default function DatabaseView() {
           </button>
           <button
             onClick={() => setShowImport(!showImport)}
-            className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-colors ${
-              showImport
-                ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
-                : "bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600"
-            }`}
+            className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-colors ${showImport
+              ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+              : "bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600"
+              }`}
           >
             <Upload className="w-4 h-4" />
             <span className="hidden sm:inline">{t("import")}</span>
@@ -379,6 +378,9 @@ export default function DatabaseView() {
           </button>
         </div>
       </div>
+
+      {/* Progress Bar for Matching */}
+      <MatchingProgressBar />
 
       {/* Import Panel */}
       {showImport && (
@@ -407,11 +409,10 @@ export default function DatabaseView() {
                 <button
                   key={table.id}
                   onClick={() => setActiveTable(table.id)}
-                  className={`flex-shrink-0 lg:w-full flex items-center justify-between px-3 py-2 lg:py-2.5 rounded-xl transition-colors text-sm md:text-base ${
-                    activeTable === table.id
-                      ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700/50"
-                  }`}
+                  className={`flex-shrink-0 lg:w-full flex items-center justify-between px-3 py-2 lg:py-2.5 rounded-xl transition-colors text-sm md:text-base ${activeTable === table.id
+                    ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700/50"
+                    }`}
                 >
                   <div className="flex items-center gap-2">
                     <Circle

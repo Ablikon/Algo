@@ -11,7 +11,7 @@ const translations = {
     database: "База данных",
     mappingReview: "Проверка маппинга",
     priceAnalyst: "Ценовой аналитик",
-    glovoPartner: "Партнёр Glovo",
+    ryadomPartner: "Партнёр Рядом",
     optimizeForTop1: "Оптимизация для позиции №1",
 
     // Dashboard
@@ -145,7 +145,7 @@ const translations = {
     database: "Database",
     mappingReview: "Mapping Review",
     priceAnalyst: "Price Analyst",
-    glovoPartner: "Glovo Partner",
+    ryadomPartner: "Ryadom Partner",
     optimizeForTop1: "Optimize for #1 position",
 
     // Dashboard
@@ -278,7 +278,7 @@ const translations = {
     database: "Дерекқор",
     mappingReview: "Маппинг тексеру",
     priceAnalyst: "Баға талдаушысы",
-    glovoPartner: "Glovo серіктесі",
+    ryadomPartner: "Ryadom серіктесі",
     optimizeForTop1: "№1 позиция үшін оңтайландыру",
 
     // Dashboard

@@ -85,8 +85,16 @@ export default function Analytics() {
     ? Object.entries(stats.aggregator_stats)
         .map(([name, data]) => {
           const normalizedKey = name.toLowerCase().replace(".kz", "").trim();
+          let displayName = name;
+          if (normalizedKey === "airba") displayName = "Airba Fresh";
+          if (normalizedKey === "arbuz") displayName = "Arbuz.kz";
+          if (normalizedKey === "yandex lavka" || normalizedKey === "yandex") {
+            displayName = "Yandex Lavka";
+          }
+          if (normalizedKey === "ryadom") displayName = "Рядом";
           return {
             name,
+            displayName,
             normalizedKey,
             value: data.overlap_count || 0,
             color: aggregatorColors[normalizedKey] || "#cbd5e1",
@@ -100,6 +108,7 @@ export default function Analytics() {
         .sort((a, b) => b.value - a.value)
     : [];
 
+  const maxOverlap = overlapData.length ? overlapData[0].value : 0;
   const gridColor = "#f1f5f9";
   const textColor = "#94a3b8";
 
@@ -283,20 +292,23 @@ export default function Analytics() {
 
           <div className="space-y-6 mt-4">
             {overlapData.map((item) => {
-              const normalizedName = item.name.toLowerCase().replace(".kz", "");
+              const normalizedName = item.normalizedKey;
               const percentage = Math.min(
-                Math.round((item.value / (totalOurProducts || 1)) * 100),
+                Math.round((item.value / (maxOverlap || 1)) * 100),
                 100,
               );
 
               return (
-                <div key={item.name} className="flex items-center gap-4 group">
+                <div
+                  key={item.normalizedKey}
+                  className="flex items-center gap-4 group"
+                >
                   {/* Logo Container */}
                   <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center p-2 border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden flex-shrink-0 transition-transform group-hover:scale-105">
                     {aggregatorLogos[normalizedName] ? (
                       <img
                         src={aggregatorLogos[normalizedName]}
-                        alt={item.name}
+                        alt={item.displayName}
                         className="w-full h-full object-contain"
                       />
                     ) : (
@@ -316,7 +328,7 @@ export default function Analytics() {
                   <div className="flex-1">
                     <div className="flex justify-between items-end mb-1.5">
                       <span className="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-tight">
-                        {item.name}
+                        {item.displayName}
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-black text-gray-900 dark:text-white">
@@ -360,7 +372,7 @@ export default function Analytics() {
                   Макс. пересечение
                 </p>
                 <p className="text-sm font-black text-gray-900 dark:text-white truncate">
-                  {overlapData[0]?.name}
+                  {overlapData[0]?.displayName}
                 </p>
               </div>
             </div>

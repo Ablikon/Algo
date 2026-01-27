@@ -14,7 +14,7 @@ from models import DashboardStats
 
 router = APIRouter()
 
-OUR_COMPANY = os.getenv("OUR_COMPANY_AGGREGATOR", "Glovo")
+OUR_COMPANY = os.getenv("OUR_COMPANY_AGGREGATOR", "Рядом")
 
 
 @router.get("/dashboard/", response_model=DashboardStats)

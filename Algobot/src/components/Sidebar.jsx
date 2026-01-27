@@ -179,11 +179,10 @@ export default function Sidebar({ onClose, isMobile = false }) {
                       selectCity(city);
                       setShowCityMenu(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${
-                      currentCity && currentCity.id === city.id
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${currentCity && currentCity.id === city.id
                         ? "bg-emerald-500 text-white font-semibold"
                         : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700"
-                    }`}
+                      }`}
                   >
                     <span className="text-sm">{city.name}</span>
                     {currentCity && currentCity.id === city.id && (
@@ -232,11 +231,10 @@ export default function Sidebar({ onClose, isMobile = false }) {
                       setLanguage(lang.code);
                       setShowLangMenu(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${
-                      language === lang.code
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${language === lang.code
                         ? "bg-emerald-500 text-white font-semibold"
                         : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700"
-                    }`}
+                      }`}
                   >
                     <span className="text-base">{lang.flag}</span>
                     <span className="text-sm">{lang.name}</span>
@@ -251,7 +249,7 @@ export default function Sidebar({ onClose, isMobile = false }) {
         <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white shadow-lg shadow-emerald-200/50 dark:shadow-none overflow-hidden relative group">
           <div className="relative z-10">
             <h3 className="text-xs font-bold uppercase tracking-wider opacity-80 mb-1">
-              {t("glovoPartner")}
+              {t("ryadomPartner")}
             </h3>
             <p className="text-sm font-semibold leading-tight">
               {t("optimizeForTop1")}

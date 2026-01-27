@@ -282,9 +282,9 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-4">
             {[
               "Рядом",
-              "Glovo",
               "Magnum",
               "Wolt",
+              "Glovo",
               "Airba Fresh",
               "Yandex Lavka",
               "Arbuz.kz",
@@ -293,17 +293,17 @@ export default function Dashboard() {
                 .toLowerCase()
                 .replace(".kz", "")
                 .replace("рядом", "ryadom");
-              const isGlovo = normalizedName === "glovo";
+              const isRyadom = normalizedName === "ryadom";
 
               const aggStats =
                 stats?.aggregator_stats?.[name] ||
                 stats?.aggregator_stats?.[name.replace(".kz", "")];
-              const isOnline = isGlovo ? !!stats : !!aggStats;
+              const isOnline = isRyadom ? !!stats : !!aggStats;
 
               // Only count products we actually have (at top price or needing action)
-              const count = isGlovo
+              const count = isRyadom
                 ? (stats?.products_at_top || 0) +
-                  (stats?.products_need_action || 0)
+                (stats?.products_need_action || 0)
                 : aggStats?.count || 0;
 
               return (
@@ -311,10 +311,9 @@ export default function Dashboard() {
                   key={name}
                   className={`
                     flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-200
-                    ${
-                      isOnline
-                        ? "bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-900 dark:text-white"
-                        : "bg-transparent opacity-40 grayscale"
+                    ${isOnline
+                      ? "bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-900 dark:text-white"
+                      : "bg-transparent opacity-40 grayscale"
                     }
                   `}
                 >

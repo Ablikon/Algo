@@ -571,7 +571,7 @@ async def get_analytics_gaps(limit: int = 100):
     """Get products that we don't have but competitors do"""
     db = get_db()
 
-    OUR_COMPANY = os.getenv("OUR_COMPANY_AGGREGATOR", "Glovo")
+    OUR_COMPANY = os.getenv("OUR_COMPANY_AGGREGATOR", "Рядом")
 
     pipeline = [
         {

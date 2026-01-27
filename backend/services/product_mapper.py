@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4o')  # Using GPT-4o for best reasoning
-OUR_COMPANY = os.getenv('OUR_COMPANY_AGGREGATOR', 'Glovo')
+OUR_COMPANY = os.getenv('OUR_COMPANY_AGGREGATOR', 'Рядом')
 
 # Comprehensive transliteration mapping (CYR <-> LAT)
 TRANSLIT_MAP = {
@@ -148,7 +148,7 @@ class ProductMapper:
             prioritize_multi_aggregator: If True, process products with more
                 aggregator coverage first
         """
-        
+
         # Reset and init status
         MATCHING_STATUS['is_running'] = True
         MATCHING_STATUS['processed'] = 0
@@ -164,28 +164,33 @@ class ProductMapper:
         self._build_indexes(all_products)
 
         # Get reference products from our aggregator
+        # Filter for products that haven't been matched yet to support resuming
         our_products = await self.db.products.find({
-            'prices.aggregator': OUR_COMPANY
-        }).to_list(length=10000)
+            'prices.aggregator': OUR_COMPANY,
+            'mapping_status': {'$ne': 'matched'}
+        }).to_list(length=100000)
 
         logger.info(f"📊 Found {len(our_products)} products from {OUR_COMPANY}")
         logger.info(f"📦 Total products in database: {len(all_products)}")
 
+        # Filter out products that already have competitor prices if we want to be fast
+        # But for full sync, we might want to check all.
+        # Let's check products that have NO competitor prices yet.
+        
         # Count aggregators for each product
         product_agg_counts = {}
         for p in our_products:
             agg_count = len(set(price.get('aggregator') for price in p.get('prices', [])))
             product_agg_counts[str(p.get('_id'))] = agg_count
 
-        # Prioritize by aggregator count if requested
+        # Prioritize products with 1 aggregator (only us) to find matches for them
+        # or products with many to expand.
         if prioritize_multi_aggregator:
             our_products.sort(
                 key=lambda p: product_agg_counts.get(str(p.get('_id')), 0),
-                reverse=True
+                reverse=False # Prioritize lonely products
             )
-            logger.info("🎯 Prioritizing products with more aggregator coverage")
-
-            logger.info("🎯 Prioritizing products with more aggregator coverage")
+            logger.info("🎯 Prioritizing products with NO current matches to find new ones")
 
         results = {
             'total': len(our_products),
@@ -195,7 +200,7 @@ class ProductMapper:
             'matches': [],
             'skips': []
         }
-        
+
         MATCHING_STATUS['total'] = len(our_products)
         MATCHING_STATUS['current_product'] = "Starting batch processing..."
 
@@ -207,7 +212,7 @@ class ProductMapper:
                 try:
                     p_name = product.get('name', 'Unknown')
                     MATCHING_STATUS['current_product'] = p_name
-                    
+
                     agg_count = product_agg_counts.get(str(product.get('_id')), 0)
                     match_result = await self._match_product(
                         product,
@@ -218,7 +223,7 @@ class ProductMapper:
                     if match_result['best_match'] == 'match':
                         results['matched'] += 1
                         MATCHING_STATUS['matched'] += 1
-                        
+
                         results['matches'].append({
                             'product_name': product.get('name'),
                             'matched_name': match_result.get('matched_csv_title'),
@@ -244,7 +249,7 @@ class ProductMapper:
                             # Merge prices into our product
                             existing_prices = product.get('prices', [])
                             new_prices = matched_product.get('prices', [])
-                            
+
                             # Deduplicate by aggregator
                             merged_prices_map = {}
                             # Add existing prices first
@@ -252,16 +257,16 @@ class ProductMapper:
                                 agg = p.get('aggregator')
                                 if agg:
                                     merged_prices_map[agg] = p
-                            
+
                             # Override/Add new prices (competitor prices)
                             for p in new_prices:
                                 agg = p.get('aggregator')
                                 if agg:
                                     # If it's a competitor price, it's valuable
                                     merged_prices_map[agg] = p
-                                    
+
                             final_prices = list(merged_prices_map.values())
-                            
+
                             update_res = await self.db.products.update_one(
                                 {'_id': product['_id']},
                                 {
@@ -310,7 +315,7 @@ class ProductMapper:
             )
 
             await asyncio.sleep(0.1)
-            
+
         MATCHING_STATUS['is_running'] = False
         MATCHING_STATUS['current_product'] = "Completed"
 
@@ -550,7 +555,7 @@ class ProductMapper:
 
         # Find candidates using multiple strategies
         candidates = self._find_candidates_enhanced(product, all_products)
-        
+
         # If no candidates found with strict/smart strategies, try fallback
         if not candidates and self.config.get('enable_fallback', False):
             candidates = self._find_candidates_fallback(product, all_products)
@@ -730,7 +735,7 @@ class ProductMapper:
                     # Allow 1-keyword match if the keyword is significant (len >= 5)
                     # or if we have 2+ matches
                     is_significant = any(len(kw) >= 5 for kw in product_keywords if pid in [str(item.get('_id')) for item in self.keyword_index.get(kw, [])])
-                    
+
                     if hit_count >= 2 or (hit_count >= 1 and is_significant):
                         p = next((p for p in all_products if str(p.get('_id')) == pid), None)
                         if p:
@@ -826,7 +831,7 @@ class ProductMapper:
         # EXCLUDE self-matches from the same aggregator
         cand_prices = candidate.get('prices', [])
         cand_aggregators = set(p.get('aggregator') for p in cand_prices)
-        
+
         if OUR_COMPANY in cand_aggregators and len(cand_aggregators) == 1:
             # This is a pure product from our own aggregator, skip it
             return
@@ -915,26 +920,26 @@ class ProductMapper:
         product_name = self._normalize_string(product.get('name', ''))
         product_id = str(product.get('_id', ''))
         product_weight = self._extract_weight(product)
-        
+
         if len(product_name) < 3:
             return []
-            
+
         candidates = {}
-        
+
         # We need to iterate all products since indexes didn't help
         # Optimizing by doing a quick check first
-        
+
         # Pre-filter by weight if we have it
         potential_pool = []
         if product_weight:
             # Only check products with same weight unit class (ignoring small diffs)
             tolerance = self.config['weight_tolerance'] * 2 # Double tolerance for fallback
-            
+
             for p in all_products:
                 pid = str(p.get('_id', ''))
                 if pid == product_id:
                     continue
-                    
+
                 p_weight = self._extract_weight(p)
                 if p_weight:
                     if abs(p_weight - product_weight) <= tolerance:
@@ -944,7 +949,7 @@ class ProductMapper:
                     potential_pool.append(p)
         else:
             potential_pool = all_products
-            
+
         # Fuzzy match on name for the pool
         # Limit pool size to avoid timeout if it's too huge
         if len(potential_pool) > 10000:
@@ -956,14 +961,14 @@ class ProductMapper:
              pid = str(p.get('_id', ''))
              if pid == product_id:
                 continue
-                
+
              p_name = self._normalize_string(p.get('name', ''))
-             
+
              # Quick substring check
              # If significant words from source are in target
              p_words = set(product_name.split())
              c_words = set(p_name.split())
-             
+
              overlap = len(p_words & c_words)
              # simple ratio
              if overlap >= 2 or (overlap == 1 and len(p_words) <= 2):
@@ -971,22 +976,22 @@ class ProductMapper:
                  ratio = SequenceMatcher(None, product_name, p_name).ratio()
                  if ratio > 0.4: # Very loose threshold
                      self._score_candidate_enhanced(
-                        p, product_name, 
-                        product.get('brand',''), 
-                        product_weight, 
-                        candidates, 
+                        p, product_name,
+                        product.get('brand',''),
+                        product_weight,
+                        candidates,
                         boost=int(ratio * 10)
                      )
-                     
+
         sorted_candidates = sorted(
             candidates.values(),
             key=lambda x: (x['score'], x['aggregator_count']),
             reverse=True
         )[:20] # Return top 20 fallback candidates
-        
+
         if sorted_candidates:
             logger.info(f"⚠️ Used fallback strategy for '{product.get('name')}': found {len(sorted_candidates)} candidates")
-            
+
         return sorted_candidates
 
     def _word_overlap_score(self, s1: str, s2: str) -> float:

@@ -13,11 +13,13 @@ Key features:
 
 import json
 import re
+import os
 import logging
 from pathlib import Path
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional, List, Dict, Any
+from pymongo import UpdateOne
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +73,8 @@ class DataImporter:
             'by_category': {}
         }
         self.error_messages = []
+        self.our_company = os.getenv("OUR_COMPANY_AGGREGATOR", "Рядом")
+        self._our_index = None
 
     async def import_all(
         self,
@@ -210,13 +214,74 @@ class DataImporter:
             self.error_messages.append(f"Error in {agg_slug}: {str(e)}")
             self.stats['errors'] += 1
 
+    def _normalize_text(self, text: Optional[str]) -> str:
+        if not text:
+            return ""
+        text = re.sub(r"[^a-zA-Zа-яА-Я0-9]+", " ", str(text)).lower()
+        return " ".join(text.split())
+
+    def _build_match_key(self, parsed: Dict[str, Any]) -> str:
+        name_key = self._normalize_text(parsed.get("name"))
+        brand_key = self._normalize_text(parsed.get("brand"))
+        weight_val = parsed.get("weight_value")
+        weight_unit = parsed.get("weight_unit") or ""
+        weight_key = ""
+        if weight_val is not None:
+            try:
+                weight_key = f"{float(weight_val):.0f}{weight_unit}".lower()
+            except Exception:
+                weight_key = ""
+        return f"{name_key}|{brand_key}|{weight_key}"
+
+    async def _ensure_our_index(self) -> None:
+        if self._our_index is not None:
+            return
+        self._our_index = {}
+        cursor = self.db.products.find(
+            {"prices.aggregator": self.our_company},
+            {"_id": 1, "name": 1, "brand": 1, "weight_value": 1, "weight_unit": 1, "prices": 1, "image_url": 1}
+        )
+        async for doc in cursor:
+            parsed = {
+                "name": doc.get("name"),
+                "brand": doc.get("brand"),
+                "weight_value": doc.get("weight_value"),
+                "weight_unit": doc.get("weight_unit"),
+            }
+            key = self._build_match_key(parsed)
+            if key:
+                self._our_index[key] = doc
+
     async def _process_batch(self, batch: List[Dict]):
         """Process a batch of products - upsert into MongoDB"""
+        if not batch:
+            return
+
+        now = datetime.utcnow()
+
+        # Fetch existing products in one query
+        names = [item['parsed'].get('name') for item in batch if item.get('parsed') and item['parsed'].get('name')]
+        if not names:
+            return
+
+        existing_docs = await self.db.products.find(
+            {'name': {'$in': names}},
+            {'_id': 1, 'name': 1, 'prices': 1, 'image_url': 1}
+        ).to_list(length=len(names))
+        existing_map = {doc['name']: doc for doc in existing_docs}
+
+        await self._ensure_our_index()
+
+        bulk_ops = []
+        new_docs = []
 
         for item in batch:
             parsed = item['parsed']
             aggregator = item['aggregator']
             city = item['city']
+            name = parsed.get('name')
+            if not name:
+                continue
 
             # Build price entry
             price_entry = {
@@ -228,33 +293,32 @@ class DataImporter:
                 'external_url': parsed.get('external_url'),
                 'external_id': parsed.get('external_id'),
                 'matched_uuid': parsed.get('matched_uuid'),
-                'updated_at': datetime.utcnow()
+                'updated_at': now
             }
 
-            # Check if product exists (by name - simplified matching)
-            existing = await self.db.products.find_one({'name': parsed['name']})
+            existing = existing_map.get(name)
+            if not existing and self._our_index is not None:
+                match_key = self._build_match_key(parsed)
+                existing = self._our_index.get(match_key)
 
             if existing:
-                # Update: add or update price for this aggregator
                 prices = existing.get('prices', [])
-
-                # Remove existing price from same aggregator
                 prices = [p for p in prices if p.get('aggregator') != aggregator]
                 prices.append(price_entry)
 
-                await self.db.products.update_one(
-                    {'_id': existing['_id']},
-                    {'$set': {
-                        'prices': prices,
-                        'updated_at': datetime.utcnow(),
-                        # Update image if better quality
-                        'image_url': parsed.get('image_url') or existing.get('image_url')
-                    }}
+                bulk_ops.append(
+                    UpdateOne(
+                        {'_id': existing['_id']},
+                        {'$set': {
+                            'prices': prices,
+                            'updated_at': now,
+                            'image_url': parsed.get('image_url') or existing.get('image_url')
+                        }}
+                    )
                 )
             else:
-                # Insert new product
-                doc = {
-                    'name': parsed['name'],
+                new_docs.append({
+                    'name': name,
                     'category': parsed.get('category'),
                     'subcategory': parsed.get('subcategory'),
                     'brand': parsed.get('brand'),
@@ -265,11 +329,15 @@ class DataImporter:
                     'prices': [price_entry],
                     'mapping_status': 'pending',
                     'matched_product_ids': [],
-                    'created_at': datetime.utcnow(),
-                    'updated_at': datetime.utcnow()
-                }
+                    'created_at': now,
+                    'updated_at': now
+                })
 
-                await self.db.products.insert_one(doc)
+        if bulk_ops:
+            await self.db.products.bulk_write(bulk_ops, ordered=False)
+
+        if new_docs:
+            await self.db.products.insert_many(new_docs, ordered=False)
 
     def _parse_product(self, data: Dict, agg_slug: str) -> Dict:
         """

@@ -14,7 +14,7 @@ from models import ProductComparisonResponse, PriceEntryResponse
 
 router = APIRouter()
 
-OUR_COMPANY = os.getenv("OUR_COMPANY_AGGREGATOR", "Glovo")
+OUR_COMPANY = os.getenv("OUR_COMPANY_AGGREGATOR", "Рядом")
 
 AGGREGATOR_COLORS = {
     "Glovo": "#00A082",

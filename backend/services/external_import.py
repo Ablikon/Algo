@@ -1,17 +1,20 @@
 import os
 import json
 import logging
+import re
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
 import httpx
 
 from database import get_db
 from services.data_importer import DataImporter
+from services.ryadom_matcher import RyadomMatcher
 
 logger = logging.getLogger(__name__)
 
 EXTERNAL_API_BASE = os.getenv("EXTERNAL_API_BASE")
 EXTERNAL_API_TOKEN = os.getenv("EXTERNAL_API_TOKEN")
+OUR_COMPANY = os.getenv("OUR_COMPANY_AGGREGATOR", "Рядом")
 
 # Progress tracker for external imports
 EXTERNAL_IMPORT_STATUS: Dict[str, Any] = {
@@ -59,6 +62,115 @@ CITY_KEYWORDS = {
     "almaty": "almaty",
     "astana": "astana",
 }
+
+
+def _normalize_text(text: Optional[str]) -> str:
+    if not text:
+        return ""
+    return " ".join(str(text).lower().strip().split())
+
+
+def _parse_weight_value(text: Optional[str]) -> Optional[float]:
+    if not text:
+        return None
+    match = re.search(r"(\d+[.,]?\d*)\s*(кг|kg|л|l|мл|ml|г|g|гр)\b", str(text).lower())
+    if not match:
+        return None
+    value = float(match.group(1).replace(",", "."))
+    unit = match.group(2)
+    if unit in ("kg", "кг"):
+        return value * 1000
+    if unit in ("l", "л"):
+        return value * 1000
+    return value
+
+
+def _weight_from_product(product: Dict[str, Any]) -> Optional[float]:
+    val = product.get("weight_value")
+    unit = (product.get("weight_unit") or "").lower()
+    if val is None:
+        return _parse_weight_value(product.get("name"))
+    try:
+        val = float(val)
+    except Exception:
+        return None
+    if unit in ("kg", "кг"):
+        return val * 1000
+    if unit in ("l", "л"):
+        return val * 1000
+    return val
+
+
+def _build_ryadom_key(name: Optional[str], brand: Optional[str] = None, weight: Optional[float] = None) -> str:
+    base = _normalize_text(name)
+    if not base:
+        return ""
+    parts = [base]
+    if brand:
+        parts.append(_normalize_text(brand))
+    if weight:
+        parts.append(str(int(weight)))
+    return "|".join(parts)
+
+
+async def _build_ryadom_index(db) -> Tuple[Dict[str, Dict[str, Any]], List[Dict[str, Any]]]:
+    if not OUR_COMPANY:
+        return {}, []
+    cursor = db.products.find(
+        {"prices.aggregator": OUR_COMPANY},
+        {"name": 1, "brand": 1, "category": 1, "subcategory": 1, "weight_value": 1, "weight_unit": 1}
+    )
+    index: Dict[str, Dict[str, Any]] = {}
+    candidates: List[Dict[str, Any]] = []
+    async for doc in cursor:
+        name = doc.get("name")
+        if not name:
+            continue
+        candidates.append(doc)
+        brand = doc.get("brand")
+        weight = _weight_from_product(doc)
+        key_with_weight = _build_ryadom_key(name, brand, weight)
+        if key_with_weight and key_with_weight not in index:
+            index[key_with_weight] = doc
+        key_brand = _build_ryadom_key(name, brand, None)
+        if key_brand and key_brand not in index:
+            index[key_brand] = doc
+        key_name = _build_ryadom_key(name, None, None)
+        if key_name and key_name not in index:
+            index[key_name] = doc
+    return index, candidates
+
+
+def _match_ryadom_product(
+    parsed: Dict[str, Any],
+    ryadom_index: Dict[str, Dict[str, Any]],
+    ryadom_candidates: List[Dict[str, Any]],
+    matcher: Optional[RyadomMatcher] = None,
+) -> Optional[Dict[str, Any]]:
+    if not ryadom_index and not ryadom_candidates:
+        return None
+    name = parsed.get("name")
+    if not name:
+        return None
+    brand = parsed.get("brand")
+    weight = _parse_weight_value(parsed.get("measure")) or _parse_weight_value(name)
+    key_with_weight = _build_ryadom_key(name, brand, weight)
+    if key_with_weight and key_with_weight in ryadom_index:
+        return ryadom_index[key_with_weight]
+    key_brand = _build_ryadom_key(name, brand, None)
+    if key_brand and key_brand in ryadom_index:
+        return ryadom_index[key_brand]
+    key_name = _build_ryadom_key(name, None, None)
+    exact = ryadom_index.get(key_name)
+    if exact:
+        return exact
+
+    if matcher and ryadom_candidates:
+        match_result = matcher.match(parsed, ryadom_candidates)
+        if match_result.get("best_match") == "match":
+            return match_result.get("matched_item")
+
+    return None
 
 
 def get_external_import_status() -> Dict[str, Any]:
@@ -159,6 +271,9 @@ async def import_from_external_api(
 
             await importer._ensure_aggregators()
 
+            ryadom_index, ryadom_candidates = await _build_ryadom_index(db)
+            ryadom_matcher = RyadomMatcher()
+
             for file_info in files:
                 file_id = file_info.get("id")
                 filename = file_info.get("filename", file_id)
@@ -199,6 +314,19 @@ async def import_from_external_api(
                     )
 
                     parsed = importer._parse_product(item, config["aggregator"].lower())
+
+                    matched = _match_ryadom_product(
+                        parsed,
+                        ryadom_index,
+                        ryadom_candidates,
+                        ryadom_matcher,
+                    )
+                    if matched:
+                        parsed["name"] = matched.get("name") or parsed.get("name")
+                        parsed["brand"] = matched.get("brand") or parsed.get("brand")
+                        parsed["category"] = matched.get("category") or parsed.get("category")
+                        parsed["subcategory"] = matched.get("subcategory") or parsed.get("subcategory")
+
                     if not parsed.get("name"):
                         results["errors"] += 1
                         EXTERNAL_IMPORT_STATUS["errors"] += 1
