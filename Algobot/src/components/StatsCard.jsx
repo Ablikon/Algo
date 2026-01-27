@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 
-export default function StatsCard({ title, value, subtitle, icon: Icon, color, trend }) {
+export default function StatsCard({ title, value, unit, subtitle, icon: Icon, color, trend }) {
   const bgColorClasses = {
     emerald: 'bg-emerald-50 dark:bg-emerald-900/30',
     blue: 'bg-blue-50 dark:bg-blue-900/30',
@@ -22,7 +22,10 @@ export default function StatsCard({ title, value, subtitle, icon: Icon, color, t
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 font-medium truncate">{title}</p>
-          <p className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white mt-1 md:mt-2">{value}</p>
+          <p className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white mt-1 md:mt-2">
+            {typeof value === 'number' ? value.toLocaleString() : value}
+            {unit && <span className="text-sm md:text-base font-medium text-gray-500 dark:text-gray-400 ml-1">{unit}</span>}
+          </p>
           {subtitle && (
             <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">{subtitle}</p>
           )}

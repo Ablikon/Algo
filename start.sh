@@ -21,7 +21,6 @@ if [ $? -eq 0 ]; then
   echo "✅ System started successfully!"
   echo "   - Frontend: http://localhost:3000"
   echo "   - Backend:  http://localhost:8000"
-  echo "   - Docs:     http://localhost:8000/docs"
   
   echo "📊 Services status:"
   docker-compose ps

@@ -21,11 +21,26 @@ export default function ComparisonTable({ products, compact = false, showNormali
   const getVerdict = (product, minPrice) => {
     // Find our company price - checking for is_our_company flag in prices
     let ourPriceVal = null;
-    Object.values(product.prices || {}).forEach(p => {
+    let minPriceAggregator = null;
+    
+    Object.entries(product.prices || {}).forEach(([aggName, p]) => {
       if (p.is_our_company) ourPriceVal = p.price;
+      if (p.price === minPrice) minPriceAggregator = aggName;
     });
 
-    if (!ourPriceVal) return { type: 'missing', text: 'Нет цены', color: 'gray' };
+    // If we have verdict from backend, use it
+    if (product.verdict && !ourPriceVal) {
+      return { type: 'info', text: product.verdict, color: 'blue' };
+    }
+
+    if (!ourPriceVal) {
+      // Show who has the best price when we don't have a price
+      if (minPriceAggregator) {
+        return { type: 'info', text: minPriceAggregator, color: 'blue' };
+      }
+      return { type: 'missing', text: 'Нет цены', color: 'gray' };
+    }
+    
     if (!minPrice) return { type: 'exclusive', text: 'Эксклюзив', color: 'blue' };
 
     if (ourPriceVal === minPrice) {
@@ -59,6 +74,13 @@ export default function ComparisonTable({ products, compact = false, showNormali
       case 'exclusive':
         return (
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-100">
+            <Trophy className="w-4 h-4" />
+            <span className="text-xs font-bold whitespace-nowrap">{verdict.text}</span>
+          </div>
+        );
+      case 'info':
+        return (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-50 text-cyan-700 border border-cyan-100">
             <Trophy className="w-4 h-4" />
             <span className="text-xs font-bold whitespace-nowrap">{verdict.text}</span>
           </div>
@@ -138,12 +160,21 @@ export default function ComparisonTable({ products, compact = false, showNormali
 
   const displayProducts = compact ? products.slice(0, 5) : products;
 
-  // Use exact names for sorting
-  const defaultOrder = ['Glovo', 'Magnum', 'Wolt', 'Yandex Lavka', 'Airba Fresh', 'Arbuz.kz'];
+  // Use exact names for sorting (removed Glovo - no data)
+  const defaultOrder = ['Magnum', 'Wolt', 'Yandex Lavka', 'Airba Fresh', 'Arbuz.kz'];
+
+  // Filter out our company aggregator and aggregators with no products
+  const filteredAggregatorNames = allAggregatorNames.filter(name => {
+    const aggMeta = availableAggregators.find(a => a.name === name);
+    // Skip our company and Glovo (no data available)
+    if (aggMeta?.is_our_company) return false;
+    if (name === 'Glovo') return false;
+    return true;
+  });
 
   const sortedAggregators = [
-    ...defaultOrder.filter(name => allAggregatorNames.includes(name)),
-    ...allAggregatorNames.filter(name => !defaultOrder.includes(name))
+    ...defaultOrder.filter(name => filteredAggregatorNames.includes(name)),
+    ...filteredAggregatorNames.filter(name => !defaultOrder.includes(name))
   ];
 
   return (
@@ -180,12 +211,11 @@ export default function ComparisonTable({ products, compact = false, showNormali
                 // Find aggregator metadata if available
                 const aggMeta = availableAggregators.find(a => a.name === agg);
                 const color = aggMeta?.color || aggregatorColors[agg.toLowerCase()] || '#cbd5e1';
-                const isOur = aggMeta?.is_our_company;
 
                 return (
                   <th key={agg} className="py-4 px-2 text-center text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[120px]">
                     <div className="flex flex-col items-center gap-1">
-                      <span>{isOur ? 'Наши Цены' : agg}</span>
+                      <span>{agg}</span>
                       <div className="h-0.5 w-6 rounded-full" style={{ backgroundColor: color }} />
                     </div>
                   </th>

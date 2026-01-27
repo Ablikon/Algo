@@ -147,25 +147,30 @@ export default function Dashboard() {
           (stats?.products_at_top || 0) + (stats?.products_need_action || 0);
         const displayTotal = ourTotal + competitorsTotal;
 
+        const marketLeader = stats?.market_leader || 'N/A';
+        
         return (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
             <StatsCard
               title="Лучшая цена"
               value={stats?.products_at_top || 0}
-              subtitle={`Товаров из каталога`}
+              unit="товаров"
+              subtitle={`Лидер: ${marketLeader}`}
               icon={Trophy}
               color="emerald"
             />
             <StatsCard
-              title="Выше конкурентов"
+              title="Дороже лидера"
               value={stats?.products_need_action || 0}
-              subtitle="Требуют коррекции"
+              unit="товаров"
+              subtitle={`Дороже чем ${marketLeader}`}
               icon={AlertTriangle}
               color="amber"
             />
             <StatsCard
               title="Только у конкурентов"
               value={competitorsTotal}
+              unit="товаров"
               subtitle="Общий ассортимент"
               icon={Snail}
               color="rose"
@@ -173,6 +178,7 @@ export default function Dashboard() {
             <StatsCard
               title="Всего товаров"
               value={displayTotal}
+              unit="товаров"
               subtitle="В выборке магазина"
               icon={Package}
               color="blue"
@@ -282,7 +288,6 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-4">
             {[
               "Рядом",
-              "Glovo",
               "Magnum",
               "Wolt",
               "Airba Fresh",
@@ -293,18 +298,14 @@ export default function Dashboard() {
                 .toLowerCase()
                 .replace(".kz", "")
                 .replace("рядом", "ryadom");
-              const isGlovo = normalizedName === "glovo";
 
               const aggStats =
                 stats?.aggregator_stats?.[name] ||
                 stats?.aggregator_stats?.[name.replace(".kz", "")];
-              const isOnline = isGlovo ? !!stats : !!aggStats;
+              const isOnline = !!aggStats && aggStats.count > 0;
 
-              // Only count products we actually have (at top price or needing action)
-              const count = isGlovo
-                ? (stats?.products_at_top || 0) +
-                  (stats?.products_need_action || 0)
-                : aggStats?.count || 0;
+              // Real count from aggregator stats
+              const count = aggStats?.count || 0;
 
               return (
                 <div

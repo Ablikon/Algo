@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  # Backend - FastAPI
+  # Backend - Node.js
   backend:
     build:
       context: ./backend
@@ -10,19 +8,18 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - NODE_ENV=production
+      - API_PORT=8000
       - MONGO_URI=${MONGO_URI:-mongodb+srv://admin:2525123@scoutalgo.tfqg35b.mongodb.net/?appName=ScoutAlgo}
       - MONGO_DB_NAME=${MONGO_DB_NAME:-scoutalgo}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
-      - OUR_COMPANY_AGGREGATOR=${OUR_COMPANY_AGGREGATOR:-Glovo}
-      - EXTERNAL_API_BASE=${EXTERNAL_API_BASE}
-      - EXTERNAL_API_TOKEN=${EXTERNAL_API_TOKEN}
+      - EXTERNAL_API_BASE=${EXTERNAL_API_BASE:-http://94.131.88.146}
+      - EXTERNAL_API_TOKEN=${EXTERNAL_API_TOKEN:-7e248c0f2ddbe71f1d2339c731d0c5d5954e647a2c000e96d696c3f78acfb2d5}
     volumes:
-      # Mount Data folder for JSON import
-      - ./Data:/Data:ro
+      # Mount Data folder for CSV import (bq-results)
+      - ./Data:/app/Data:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/aggregators"]
       interval: 30s
       timeout: 10s
       retries: 3

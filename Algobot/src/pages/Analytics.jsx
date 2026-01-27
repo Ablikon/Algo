@@ -79,8 +79,11 @@ export default function Analytics() {
     }
   };
 
-  const totalOurProducts =
-    (stats?.products_at_top || 0) + (stats?.products_need_action || 0);
+  // Our products count (Рядом)
+  const ryadomStats = stats?.aggregator_stats?.['Рядом'];
+  const totalOurProducts = ryadomStats?.count || 0;
+  
+  // Competitor data - show actual product counts per aggregator
   const overlapData = stats?.aggregator_stats
     ? Object.entries(stats.aggregator_stats)
         .map(([name, data]) => {
@@ -88,14 +91,16 @@ export default function Analytics() {
           return {
             name,
             normalizedKey,
-            value: data.overlap_count || 0,
+            value: data.count || 0, // Actual product count
+            overlap: data.overlap_count || 0,
             color: aggregatorColors[normalizedKey] || "#cbd5e1",
           };
         })
         .filter(
           (item) =>
             item.normalizedKey !== "ryadom" &&
-            item.name.toLowerCase().trim() !== "рядом",
+            item.name.toLowerCase().trim() !== "рядом" &&
+            item.value > 0, // Only show aggregators with products
         )
         .sort((a, b) => b.value - a.value)
     : [];
@@ -255,16 +260,16 @@ export default function Analytics() {
               </div>
               <div>
                 <h3 className="text-base md:text-xl font-bold text-gray-900 dark:text-white">
-                  Пересечение ассортимента
+                  Ассортимент конкурентов
                 </h3>
                 <p className="text-xs md:text-sm text-gray-500 hidden sm:block">
-                  Сколько ваших товаров есть у конкурентов
+                  Количество товаров у каждого агрегатора
                 </p>
               </div>
             </div>
             <div className="px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl self-start">
               <p className="text-[10px] md:text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
-                {totalOurProducts} товаров
+                Рядом: {totalOurProducts.toLocaleString()} товаров
               </p>
             </div>
           </div>
@@ -274,20 +279,17 @@ export default function Analytics() {
               <AlertCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed">
                 <span className="font-bold">Что означает график:</span>{" "}
-                показывает, какая часть вашего ассортимента дублируется у
-                конкурентов. Чем больше пересечение — тем сильнее конкуренция за
-                одних и тех же покупателей.
+                показывает количество товаров у каждого конкурента. Чем больше ассортимент — 
+                тем сильнее конкурент на рынке.
               </p>
             </div>
           </div>
 
           <div className="space-y-6 mt-4">
-            {overlapData.map((item) => {
+            {overlapData.map((item, idx) => {
               const normalizedName = item.name.toLowerCase().replace(".kz", "");
-              const percentage = Math.min(
-                Math.round((item.value / (totalOurProducts || 1)) * 100),
-                100,
-              );
+              const maxValue = overlapData[0]?.value || 1;
+              const percentage = Math.round((item.value / maxValue) * 100);
 
               return (
                 <div key={item.name} className="flex items-center gap-4 group">
