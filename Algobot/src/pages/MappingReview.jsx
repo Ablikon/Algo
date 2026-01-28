@@ -140,7 +140,7 @@ export default function MappingReview() {
         <div className="flex items-center gap-2">
           <button
             onClick={loadApiFiles}
-            className="flex items-center gap-2 bg-slate-600 hover:bg-slate-700 text-white px-3 py-2 rounded-xl text-sm font-semibold"
+            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2 rounded-xl text-sm font-semibold"
             disabled={loadingApiFiles}
           >
             {loadingApiFiles ? (
@@ -185,7 +185,7 @@ export default function MappingReview() {
             <div className="flex items-end">
               <button
                 onClick={handleReviewFromApi}
-                className="w-full flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold"
+                className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold"
                 disabled={loading || !selectedApiFile}
               >
                 {loading ? (

@@ -343,17 +343,17 @@ export default function DatabaseView() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 md:gap-3">
-          <button
+          {/* <button
             onClick={handleRunMatching}
             className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-colors"
-          >
-            <BrainCircuit className="w-4 h-4" />
-            <span className="hidden sm:inline">AI Матчинг</span>
-            <span className="sm:hidden">AI</span>
-          </button>
+          > */}
+            {/* <BrainCircuit className="w-4 h-4" /> */}
+            {/* <span className="hidden sm:inline">AI Матчинг</span> */}
+            {/* <span className="sm:hidden">AI</span> */}
+          {/* </button> */}
           <button
             onClick={handleRunExternalImport}
-            className="flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-colors"
+            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
             <span className="hidden sm:inline">Импорт из API</span>
