@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   RefreshCw,
   CheckCircle2,
@@ -9,8 +9,13 @@ import {
   Search,
   Cloud,
   ChevronDown,
+  Edit3,
+  Trash2,
+  X,
+  Check,
 } from "lucide-react";
 import { importAPI } from "../services/api";
+import api from "../services/api";
 
 const verdictStyles = {
   correct: {
@@ -38,11 +43,20 @@ const verdictStyles = {
     color: "bg-slate-100 text-slate-600 border-slate-200",
     icon: FileQuestion,
   },
+  corrected: {
+    label: "Исправлено",
+    color: "bg-blue-100 text-blue-700 border-blue-200",
+    icon: Check,
+  },
+  deleted: {
+    label: "Удалено",
+    color: "bg-gray-100 text-gray-500 border-gray-200",
+    icon: Trash2,
+  },
 };
 
 export default function MappingReview() {
-  const [matchedAggregator, setMatchedAggregator] = useState("");
-  const [limit, setLimit] = useState("");
+  const [limit, setLimit] = useState("50");
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState(null);
   const [results, setResults] = useState([]);
@@ -53,6 +67,13 @@ export default function MappingReview() {
   const [apiFiles, setApiFiles] = useState([]);
   const [selectedApiFile, setSelectedApiFile] = useState("");
   const [loadingApiFiles, setLoadingApiFiles] = useState(false);
+
+  // Modal state for editing
+  const [editModal, setEditModal] = useState(null); // { item, index }
+  const [productSearch, setProductSearch] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [savingCorrection, setSavingCorrection] = useState(false);
 
   // Load API files on mount
   useEffect(() => {
@@ -82,8 +103,8 @@ export default function MappingReview() {
       const params = {
         file_id: selectedApiFile,
         source_aggregator: "Рядом",
+        mode: "verify_existing",
       };
-      if (matchedAggregator) params.matched_aggregator = matchedAggregator;
       if (limit) params.limit = Number(limit);
 
       const response = await importAPI.reviewMappedFromApi(params);
@@ -92,14 +113,127 @@ export default function MappingReview() {
     } catch (error) {
       alert(
         "Ошибка при проверке: " +
-          (error.response?.data?.detail || error.message),
+          (error.response?.data?.error || error.message),
       );
     } finally {
       setLoading(false);
     }
   };
 
-  // Source file is fixed in DB (bq-results), no local file selection needed.
+  // Search products for correction
+  const searchProducts = useCallback(async (query) => {
+    if (!query || query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    
+    setSearchLoading(true);
+    try {
+      const response = await api.get('/mapping/search-products', {
+        params: { q: query, limit: 20 }
+      });
+      setSearchResults(response.data.products || []);
+    } catch (error) {
+      console.error("Search error:", error);
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (editModal && productSearch) {
+        searchProducts(productSearch);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [productSearch, editModal, searchProducts]);
+
+  // Save correction (change to correct product)
+  const saveCorrection = async (product) => {
+    if (!editModal) return;
+    
+    setSavingCorrection(true);
+    try {
+      const item = editModal.item;
+      await api.post('/mapping/correction', {
+        file_id: selectedApiFile,
+        ntin: item.source?.ntin,
+        csv_name: item.source?.title,
+        csv_brand: item.source?.brand,
+        csv_weight: item.source?.weight,
+        market_name: item.market_name,
+        original_match: {
+          title: item.matched?.name,
+          brand: item.matched?.brand,
+          confidence: item.original_confidence
+        },
+        corrected_product_id: product.id
+      });
+
+      // Update local state
+      const newResults = [...results];
+      newResults[editModal.index] = {
+        ...item,
+        verdict: 'corrected',
+        matched: {
+          name: product.name,
+          brand: product.brand,
+          id: product.id
+        },
+        reason: 'Исправлено вручную'
+      };
+      setResults(newResults);
+      setEditModal(null);
+      setProductSearch("");
+      setSearchResults([]);
+    } catch (error) {
+      alert("Ошибка сохранения: " + (error.response?.data?.error || error.message));
+    } finally {
+      setSavingCorrection(false);
+    }
+  };
+
+  // Delete mapping
+  const deleteMapping = async () => {
+    if (!editModal) return;
+    
+    setSavingCorrection(true);
+    try {
+      const item = editModal.item;
+      await api.post('/mapping/delete', {
+        file_id: selectedApiFile,
+        ntin: item.source?.ntin,
+        csv_name: item.source?.title,
+        csv_brand: item.source?.brand,
+        csv_weight: item.source?.weight,
+        market_name: item.market_name,
+        original_match: {
+          title: item.matched?.name,
+          brand: item.matched?.brand,
+          confidence: item.original_confidence
+        }
+      });
+
+      // Update local state
+      const newResults = [...results];
+      newResults[editModal.index] = {
+        ...item,
+        verdict: 'deleted',
+        reason: 'Матч удалён (нет соответствия)'
+      };
+      setResults(newResults);
+      setEditModal(null);
+      setProductSearch("");
+      setSearchResults([]);
+    } catch (error) {
+      alert("Ошибка удаления: " + (error.response?.data?.error || error.message));
+    } finally {
+      setSavingCorrection(false);
+    }
+  };
 
   const filteredResults = results.filter((item) => {
     const verdictOk = filterVerdict === "all" || item.verdict === filterVerdict;
@@ -122,7 +256,7 @@ export default function MappingReview() {
   const SummaryCard = ({ label, value, className }) => (
     <div className={`rounded-2xl border p-4 ${className}`}>
       <div className="text-sm text-gray-500">{label}</div>
-      <div className="text-2xl font-bold text-gray-900">{value}</div>
+      <div className="text-2xl font-bold text-gray-900">{value ?? 0}</div>
     </div>
   );
 
@@ -161,7 +295,7 @@ export default function MappingReview() {
             <Cloud className="w-4 h-4" />
             Mapped-файлы из API
           </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
             <div className="lg:col-span-2">
               <label className="block text-xs font-semibold text-gray-500 mb-2">
                 Выбери mapped-файл
@@ -182,6 +316,18 @@ export default function MappingReview() {
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               </div>
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-2">
+                Лимит записей
+              </label>
+              <input
+                type="number"
+                value={limit}
+                onChange={(e) => setLimit(e.target.value)}
+                placeholder="50"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-sm"
+              />
+            </div>
             <div className="flex items-end">
               <button
                 onClick={handleReviewFromApi}
@@ -197,53 +343,17 @@ export default function MappingReview() {
               </button>
             </div>
           </div>
-          {apiFiles.length === 0 && !loadingApiFiles && (
-            <p className="text-xs text-gray-400 mt-2">
-              Нет доступных mapped-файлов. Нажми "Обновить список".
-            </p>
-          )}
         </div>
 
-        {/* Source in DB */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-1">
-            <label className="block text-xs font-semibold text-gray-500 mb-2">
-              Источник (фиксированный)
-            </label>
-            <div className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-sm text-gray-700 dark:text-gray-200">
-              bq-results-20260120-103930-1768905602731.csv (уже в базе)
-            </div>
-          </div>
-          {/* <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-2">
-              Агрегатор matched (необязательно)
-            </label>
-            <input
-              type="text"
-              value={matchedAggregator}
-              onChange={(e) => setMatchedAggregator(e.target.value)}
-              placeholder="Wolt / Yandex Lavka / Magnum..."
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-sm"
-            />
-          </div> */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-2">
-              Лимит записей
-            </label>
-            <input
-              type="number"
-              value={limit}
-              onChange={(e) => setLimit(e.target.value)}
-              placeholder="например 500"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-sm"
-            />
-          </div>
+        {/* Source info */}
+        <div className="text-xs text-gray-500">
+          Источник: bq-results-20260120-103930-1768905602731.csv (уже в базе)
         </div>
       </div>
 
       {/* Summary */}
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
           <SummaryCard
             label="Проверено"
             value={summary.processed || summary.total}
@@ -253,6 +363,11 @@ export default function MappingReview() {
             label="Корректно"
             value={summary.correct}
             className="bg-emerald-50 border-emerald-100"
+          />
+          <SummaryCard
+            label="Исправлено"
+            value={summary.corrected || 0}
+            className="bg-blue-50 border-blue-100"
           />
           <SummaryCard
             label="Проверить"
@@ -265,14 +380,14 @@ export default function MappingReview() {
             className="bg-rose-50 border-rose-100"
           />
           <SummaryCard
-            label="Не замаплено"
-            value={summary.unmapped}
+            label="Удалено"
+            value={summary.deleted || 0}
             className="bg-gray-50 border-gray-100"
           />
           <SummaryCard
-            label="Не найдено"
-            value={summary.not_found}
-            className="bg-slate-50 border-slate-100"
+            label="Всего исправлений"
+            value={summary.total_corrections || 0}
+            className="bg-indigo-50 border-indigo-100"
           />
         </div>
       )}
@@ -299,8 +414,8 @@ export default function MappingReview() {
             <option value="correct">Корректно</option>
             <option value="needs_review">Проверить</option>
             <option value="likely_wrong">Ошибка</option>
-            <option value="unmapped">Не замаплено</option>
-            <option value="not_found">Не найдено</option>
+            <option value="corrected">Исправлено</option>
+            <option value="deleted">Удалено</option>
           </select>
         </div>
       )}
@@ -324,6 +439,9 @@ export default function MappingReview() {
                   <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
                     Причина
                   </th>
+                  <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
+                    Действия
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -331,6 +449,8 @@ export default function MappingReview() {
                   const style =
                     verdictStyles[row.verdict] || verdictStyles.needs_review;
                   const Icon = style.icon;
+                  const canEdit = ['likely_wrong', 'needs_review', 'correct'].includes(row.verdict);
+                  
                   return (
                     <tr key={idx} className="hover:bg-gray-50">
                       <td className="py-3 px-4">
@@ -346,31 +466,52 @@ export default function MappingReview() {
                           {row.source?.title || "—"}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
-                          {row.source?.brand || "—"} ·{" "}
-                          {row.source?.category || "—"}
+                          {row.source?.brand || "—"}
                         </div>
-                        {row.source?.url && (
-                          <a
-                            href={row.source.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs text-blue-600 hover:underline"
-                          >
-                            Ссылка
-                          </a>
-                        )}
                       </td>
                       <td className="py-3 px-4">
                         <div className="font-medium text-gray-900 text-sm">
                           {row.matched?.name || "—"}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
-                          {row.matched?.brand || "—"} ·{" "}
-                          {row.matched?.category || "—"}
+                          {row.matched?.brand || "—"} · {row.matched?.category || "—"}
                         </div>
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-600">
                         {row.reason || "—"}
+                      </td>
+                      <td className="py-3 px-4">
+                        {canEdit && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setEditModal({ item: row, index: idx });
+                                setProductSearch("");
+                                setSearchResults([]);
+                              }}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Изменить матч"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditModal({ item: row, index: idx });
+                                setTimeout(() => deleteMapping(), 100);
+                              }}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Удалить матч"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                        {row.verdict === 'corrected' && (
+                          <span className="text-xs text-blue-600">✓ Исправлено</span>
+                        )}
+                        {row.verdict === 'deleted' && (
+                          <span className="text-xs text-gray-500">✗ Удалено</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -384,6 +525,113 @@ export default function MappingReview() {
           Нет результатов для отображения
         </div>
       )}
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {editModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setEditModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-gray-900">Изменить матч</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {editModal.item.source?.title}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEditModal(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="p-4 border-b border-gray-200">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="Поиск товара из Рядом..."
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm"
+                    autoFocus
+                  />
+                  {searchLoading && (
+                    <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
+                  )}
+                </div>
+              </div>
+
+              {/* Results */}
+              <div className="max-h-80 overflow-y-auto">
+                {searchResults.length > 0 ? (
+                  <div className="divide-y divide-gray-100">
+                    {searchResults.map((product) => (
+                      <button
+                        key={product.id}
+                        onClick={() => saveCorrection(product)}
+                        disabled={savingCorrection}
+                        className="w-full p-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
+                      >
+                        <div>
+                          <div className="font-medium text-gray-900 text-sm">
+                            {product.name}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {product.brand || "—"}
+                          </div>
+                        </div>
+                        <Check className="w-5 h-5 text-emerald-500 opacity-0 group-hover:opacity-100" />
+                      </button>
+                    ))}
+                  </div>
+                ) : productSearch.length >= 2 && !searchLoading ? (
+                  <div className="p-8 text-center text-gray-400">
+                    Товары не найдены
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-gray-400">
+                    Введите минимум 2 символа для поиска
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-gray-200 flex justify-between">
+                <button
+                  onClick={deleteMapping}
+                  disabled={savingCorrection}
+                  className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl text-sm font-semibold"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Удалить матч
+                </button>
+                <button
+                  onClick={() => setEditModal(null)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl text-sm font-semibold"
+                >
+                  Отмена
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

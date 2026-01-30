@@ -2,6 +2,7 @@ const axios = require('axios');
 const Product = require('../models/Product');
 const Price = require('../models/Price');
 const Aggregator = require('../models/Aggregator');
+const MappingCorrection = require('../models/MappingCorrection');
 
 // External API client
 const externalApi = axios.create({
@@ -129,6 +130,14 @@ exports.reviewMappedFromApi = async (req, res) => {
             
             console.log(`[Mapping Review] Verifying ${recordsToVerify.length} existing matches (total: ${totalMatched})`);
             
+            // Load corrections from DB for this file
+            const corrections = await MappingCorrection.find({ file_id: fileId }).lean();
+            const correctionMap = new Map();
+            for (const c of corrections) {
+                correctionMap.set(c.csv_name, c);
+            }
+            console.log(`[Mapping Review] Found ${corrections.length} saved corrections for this file`);
+            
             for (const record of recordsToVerify) {
                 const csvName = record.csv_name || '';
                 const csvBrand = record.csv_brand || '';
@@ -136,26 +145,97 @@ exports.reviewMappedFromApi = async (req, res) => {
                 const aggBrand = record.brand || '';
                 const confidence = record.match_confidence || 0;
                 
-                const result = verifyExistingMatch(csvName, csvBrand, aggTitle, aggBrand, confidence);
+                // Check if there's a correction for this record
+                const correction = correctionMap.get(csvName);
                 
-                results.push({
-                    source: {
-                        title: csvName,
-                        brand: csvBrand,
-                        weight: record.csv_weight,
-                        ntin: record.ntin
-                    },
-                    matched: {
-                        name: aggTitle,
-                        brand: aggBrand,
-                        cost: record.cost,
-                        category: record.category_full_path
-                    },
-                    verdict: result.verdict,
-                    reason: result.reason,
-                    original_confidence: confidence,
-                    market_name: record.market_name
-                });
+                if (correction) {
+                    // Use corrected data instead of API data
+                    if (correction.status === 'deleted') {
+                        results.push({
+                            source: {
+                                title: csvName,
+                                brand: csvBrand,
+                                weight: record.csv_weight,
+                                ntin: record.ntin
+                            },
+                            matched: {
+                                name: correction.original_match?.title || aggTitle,
+                                brand: correction.original_match?.brand || aggBrand,
+                                cost: record.cost,
+                                category: record.category_full_path
+                            },
+                            verdict: 'deleted',
+                            reason: 'Матч удалён (нет соответствия)',
+                            original_confidence: confidence,
+                            market_name: record.market_name,
+                            is_corrected: true
+                        });
+                    } else if (correction.corrected_match?.product_id) {
+                        results.push({
+                            source: {
+                                title: csvName,
+                                brand: csvBrand,
+                                weight: record.csv_weight,
+                                ntin: record.ntin
+                            },
+                            matched: {
+                                name: correction.corrected_match.product_name,
+                                brand: correction.corrected_match.product_brand,
+                                id: correction.corrected_match.product_id,
+                                cost: record.cost,
+                                category: record.category_full_path
+                            },
+                            verdict: 'corrected',
+                            reason: 'Исправлено вручную',
+                            original_confidence: confidence,
+                            market_name: record.market_name,
+                            is_corrected: true
+                        });
+                    } else {
+                        // Correction exists but no corrected product - treat as pending
+                        const result = verifyExistingMatch(csvName, csvBrand, aggTitle, aggBrand, confidence);
+                        results.push({
+                            source: {
+                                title: csvName,
+                                brand: csvBrand,
+                                weight: record.csv_weight,
+                                ntin: record.ntin
+                            },
+                            matched: {
+                                name: aggTitle,
+                                brand: aggBrand,
+                                cost: record.cost,
+                                category: record.category_full_path
+                            },
+                            verdict: result.verdict,
+                            reason: result.reason,
+                            original_confidence: confidence,
+                            market_name: record.market_name
+                        });
+                    }
+                } else {
+                    // No correction - verify normally
+                    const result = verifyExistingMatch(csvName, csvBrand, aggTitle, aggBrand, confidence);
+                    
+                    results.push({
+                        source: {
+                            title: csvName,
+                            brand: csvBrand,
+                            weight: record.csv_weight,
+                            ntin: record.ntin
+                        },
+                        matched: {
+                            name: aggTitle,
+                            brand: aggBrand,
+                            cost: record.cost,
+                            category: record.category_full_path
+                        },
+                        verdict: result.verdict,
+                        reason: result.reason,
+                        original_confidence: confidence,
+                        market_name: record.market_name
+                    });
+                }
             }
             
             summary = {
@@ -165,8 +245,11 @@ exports.reviewMappedFromApi = async (req, res) => {
                 processed: results.length,
                 offset: offset,
                 correct: results.filter(r => r.verdict === 'correct').length,
+                corrected: results.filter(r => r.verdict === 'corrected').length,
+                deleted: results.filter(r => r.verdict === 'deleted').length,
                 needs_review: results.filter(r => r.verdict === 'needs_review').length,
-                likely_wrong: results.filter(r => r.verdict === 'likely_wrong').length
+                likely_wrong: results.filter(r => r.verdict === 'likely_wrong').length,
+                total_corrections: corrections.length
             };
         } else {
             // Mode 2: Find new matches for unmatched records
@@ -1267,3 +1350,216 @@ function verifyExistingMatch(csvName, csvBrand, aggTitle, aggBrand, originalConf
         reason: `Требует проверки (совпадение: ${(tokenSimilarity * 100).toFixed(0)}%)`
     };
 }
+
+// ==========================================
+// MAPPING CORRECTION ENDPOINTS
+// ==========================================
+
+/**
+ * Search products from Рядом (bq-results) for manual matching
+ */
+exports.searchProducts = async (req, res) => {
+    try {
+        const query = req.query.q || '';
+        const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+        
+        if (!query || query.length < 2) {
+            return res.json({ products: [], count: 0 });
+        }
+        
+        // Search products by name (case-insensitive)
+        // Use text search or regex
+        const searchRegex = new RegExp(query.split(/\s+/).join('.*'), 'i');
+        
+        // Search directly in Product collection
+        const products = await Product.find({ 
+            name: searchRegex 
+        })
+        .select('_id name brand sku image_url')
+        .limit(limit)
+        .lean();
+        
+        const result = products.map(p => ({
+            id: p._id,
+            name: p.name,
+            brand: p.brand,
+            sku: p.sku,
+            image_url: p.image_url
+        }));
+        
+        res.json({ 
+            products: result, 
+            count: result.length,
+            query 
+        });
+    } catch (err) {
+        console.error('[Search Products] Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+/**
+ * Save a mapping correction (change to correct product)
+ */
+exports.saveCorrection = async (req, res) => {
+    try {
+        const {
+            file_id,
+            ntin,
+            csv_name,
+            csv_brand,
+            csv_weight,
+            market_name,
+            original_match,
+            corrected_product_id
+        } = req.body;
+        
+        if (!file_id || !csv_name) {
+            return res.status(400).json({ error: 'file_id and csv_name are required' });
+        }
+        
+        // Get the corrected product details
+        let correctedMatch = null;
+        if (corrected_product_id) {
+            const product = await Product.findById(corrected_product_id);
+            if (product) {
+                correctedMatch = {
+                    product_id: product._id,
+                    product_name: product.name,
+                    product_brand: product.brand,
+                    is_deleted: false
+                };
+            }
+        }
+        
+        // Upsert the correction
+        const correction = await MappingCorrection.findOneAndUpdate(
+            { file_id, csv_name },
+            {
+                file_id,
+                ntin,
+                csv_name,
+                csv_brand,
+                csv_weight,
+                market_name,
+                original_match: original_match || {},
+                corrected_match: correctedMatch,
+                status: correctedMatch ? 'corrected' : 'pending',
+                corrected_at: new Date()
+            },
+            { upsert: true, new: true }
+        );
+        
+        res.json({
+            success: true,
+            correction,
+            message: 'Mapping correction saved'
+        });
+    } catch (err) {
+        console.error('[Save Correction] Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+/**
+ * Delete a mapping (mark as no correct match exists)
+ */
+exports.deleteMapping = async (req, res) => {
+    try {
+        const {
+            file_id,
+            ntin,
+            csv_name,
+            csv_brand,
+            csv_weight,
+            market_name,
+            original_match
+        } = req.body;
+        
+        if (!file_id || !csv_name) {
+            return res.status(400).json({ error: 'file_id and csv_name are required' });
+        }
+        
+        // Save as deleted mapping
+        const correction = await MappingCorrection.findOneAndUpdate(
+            { file_id, csv_name },
+            {
+                file_id,
+                ntin,
+                csv_name,
+                csv_brand,
+                csv_weight,
+                market_name,
+                original_match: original_match || {},
+                corrected_match: {
+                    is_deleted: true
+                },
+                status: 'deleted',
+                corrected_at: new Date()
+            },
+            { upsert: true, new: true }
+        );
+        
+        res.json({
+            success: true,
+            correction,
+            message: 'Mapping marked as deleted'
+        });
+    } catch (err) {
+        console.error('[Delete Mapping] Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+/**
+ * Get all corrections for a file
+ */
+exports.getCorrections = async (req, res) => {
+    try {
+        const file_id = req.query.file_id;
+        
+        if (!file_id) {
+            return res.status(400).json({ error: 'file_id is required' });
+        }
+        
+        const corrections = await MappingCorrection.find({ file_id })
+            .sort({ corrected_at: -1 });
+        
+        res.json({
+            corrections,
+            count: corrections.length,
+            file_id
+        });
+    } catch (err) {
+        console.error('[Get Corrections] Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+/**
+ * Get correction statistics
+ */
+exports.getCorrectionStats = async (req, res) => {
+    try {
+        const stats = await MappingCorrection.aggregate([
+            {
+                $group: {
+                    _id: '$file_id',
+                    total: { $sum: 1 },
+                    corrected: { $sum: { $cond: [{ $eq: ['$status', 'corrected'] }, 1, 0] } },
+                    deleted: { $sum: { $cond: [{ $eq: ['$status', 'deleted'] }, 1, 0] } }
+                }
+            }
+        ]);
+        
+        const totalCorrections = await MappingCorrection.countDocuments();
+        
+        res.json({
+            total: totalCorrections,
+            by_file: stats
+        });
+    } catch (err) {
+        console.error('[Correction Stats] Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+};

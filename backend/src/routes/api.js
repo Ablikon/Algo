@@ -69,6 +69,13 @@ router.get('/import/mapped/review-from-api/', verificationController.reviewMappe
 router.post('/import/mapped/review-from-api', verificationController.reviewMappedFromApi);
 router.post('/import/mapped/review-from-api/', verificationController.reviewMappedFromApi);
 
+// Mapping corrections (manual fixes)
+router.get('/mapping/search-products', verificationController.searchProducts);
+router.post('/mapping/correction', verificationController.saveCorrection);
+router.post('/mapping/delete', verificationController.deleteMapping);
+router.get('/mapping/corrections', verificationController.getCorrections);
+router.get('/mapping/stats', verificationController.getCorrectionStats);
+
 // Local file review (new format)
 router.get('/import/local/review', verificationController.reviewLocalFile);
 router.post('/import/local/review', verificationController.reviewLocalFile);
