@@ -69,6 +69,10 @@ router.get('/import/mapped/review-from-api/', verificationController.reviewMappe
 router.post('/import/mapped/review-from-api', verificationController.reviewMappedFromApi);
 router.post('/import/mapped/review-from-api/', verificationController.reviewMappedFromApi);
 
+// Local file review (new format)
+router.get('/import/local/review', verificationController.reviewLocalFile);
+router.post('/import/local/review', verificationController.reviewLocalFile);
+
 // Ryadom (our company) data management
 router.get('/ryadom/status', ryadomController.getBqStatus);
 router.post('/ryadom/load-bq', ryadomController.loadBqResults);

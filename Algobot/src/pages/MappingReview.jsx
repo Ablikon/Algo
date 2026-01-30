@@ -245,8 +245,8 @@ export default function MappingReview() {
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           <SummaryCard
-            label="Всего"
-            value={summary.total}
+            label="Проверено"
+            value={summary.processed || summary.total}
             className="bg-white"
           />
           <SummaryCard

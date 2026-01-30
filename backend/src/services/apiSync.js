@@ -213,8 +213,12 @@ class ApiSyncService {
             console.log(`  Found ${records.length} records`);
 
             // Determine aggregator from first record
+            // NEW FORMAT: market_name instead of mercant_name
             const sampleRecord = records[0];
-            const aggregatorName = this.resolveAggregatorName(sampleRecord.mercant_name, fileId);
+            const aggregatorName = this.resolveAggregatorName(
+                sampleRecord.mercant_name || sampleRecord.market_name, 
+                fileId
+            );
             const city = this.extractCity(fileId, sampleRecord);
             
             console.log(`  Aggregator: ${aggregatorName}, City: ${city || 'all'}`);
@@ -250,10 +254,23 @@ class ApiSyncService {
         const recordsMap = new Map(); // key -> record for price creation
 
         for (const record of records) {
-            const title = record.title || record.name;
+            // NEW FORMAT: 
+            // - csv_name, csv_brand: OUR product data (already in DB via bq-results/Рядом)
+            // - title, brand, cost: AGGREGATOR product data (only when match=true)
+            // 
+            // SMART SYNC:
+            // - match=true: Create/update product with aggregator data + price
+            // - match=false: Skip (our products are already in DB via Рядом)
+            
+            const hasAggregatorData = record.match === true && record.title;
+            
+            // Only process records with aggregator data (match=true)
+            if (!hasAggregatorData) continue;
+            
+            const title = record.title;
             if (!title) continue;
 
-            const matchedUuid = record.matched_uuid || null;
+            const matchedUuid = record.matched_uuid || record.product_id || null;
             const key = matchedUuid || title;
             
             // Store for later price creation
@@ -282,8 +299,8 @@ class ApiSyncService {
         }
 
         // Get all products we just upserted in ONE query
-        const uuids = [...recordsMap.keys()].filter(k => k.includes('-')); // UUIDs contain dashes
-        const names = [...recordsMap.keys()].filter(k => !k.includes('-'));
+        const uuids = [...recordsMap.keys()].filter(k => k && k.includes && k.includes('-')); // UUIDs contain dashes
+        const names = [...recordsMap.keys()].filter(k => k && (!k.includes || !k.includes('-')));
         
         const products = await Product.find({
             $or: [
@@ -299,13 +316,13 @@ class ApiSyncService {
             productLookup.set(p.name, p._id);
         });
 
-        // Create price operations
+        // Create price operations - all records in recordsMap have aggregator data
         const priceOps = [];
         for (const [key, record] of recordsMap) {
             const price = parseFloat(record.cost || record.price);
             if (!price || isNaN(price)) continue;
 
-            const productId = productLookup.get(key) || productLookup.get(record.title || record.name);
+            const productId = productLookup.get(key) || productLookup.get(record.title);
             if (!productId) continue;
 
             priceOps.push({
