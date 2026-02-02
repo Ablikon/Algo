@@ -4,9 +4,9 @@ const Price = require('../models/Price');
 const Aggregator = require('../models/Aggregator');
 const MappingCorrection = require('../models/MappingCorrection');
 
-// External API client
+// External API client (новый API: reverse-files, reverse-mapping, порт 3000)
 const externalApi = axios.create({
-    baseURL: process.env.EXTERNAL_API_BASE || 'http://94.131.88.146',
+    baseURL: process.env.EXTERNAL_API_BASE,
     headers: { 'Authorization': `Bearer ${process.env.EXTERNAL_API_TOKEN}` },
     timeout: 60000
 });
@@ -106,7 +106,7 @@ exports.reviewMappedFromApi = async (req, res) => {
         const startTime = Date.now();
 
         // Fetch API file data
-        const response = await externalApi.get(`/api/csv-data/${fileId}`);
+        const response = await externalApi.get(`/api/reverse-mapping/${fileId}`);
         const apiRecords = response.data.data || [];
 
         if (apiRecords.length === 0) {
@@ -130,8 +130,11 @@ exports.reviewMappedFromApi = async (req, res) => {
             
             console.log(`[Mapping Review] Verifying ${recordsToVerify.length} existing matches (total: ${totalMatched})`);
             
-            // Load corrections from DB for this file
-            const corrections = await MappingCorrection.find({ file_id: fileId }).lean();
+            // Load corrections from DB for this file (поддержка старого file_id с _mapped)
+            const fileIdsToMatch = [fileId];
+            if (fileId.endsWith('_mapped')) fileIdsToMatch.push(fileId.replace(/_mapped$/, ''));
+            else fileIdsToMatch.push(fileId + '_mapped');
+            const corrections = await MappingCorrection.find({ file_id: { $in: fileIdsToMatch } }).lean();
             const correctionMap = new Map();
             for (const c of corrections) {
                 correctionMap.set(c.csv_name, c);
@@ -1117,7 +1120,7 @@ exports.getMappingVerification = async (req, res) => {
 
 async function getAvailableFiles() {
     try {
-        const response = await externalApi.get('/api/csv-files');
+        const response = await externalApi.get('/api/reverse-files');
         return response.data.files?.map(f => f.id) || [];
     } catch (err) {
         return [];

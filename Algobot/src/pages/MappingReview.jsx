@@ -309,7 +309,7 @@ export default function MappingReview() {
                   <option value="">-- Выбери файл --</option>
                   {apiFiles.map((file) => (
                     <option key={file.id} value={file.id}>
-                      {file.filename || file.id}
+                      {file.list_name || file.filename || file.id}
                     </option>
                   ))}
                 </select>
@@ -382,7 +382,7 @@ export default function MappingReview() {
           <SummaryCard
             label="Удалено"
             value={summary.deleted || 0}
-            className="bg-gray-50 border-gray-100"
+            className="bg-red-200 border-red-300"
           />
           <SummaryCard
             label="Всего исправлений"

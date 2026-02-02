@@ -6,9 +6,9 @@ const Category = require('../models/Category');
 const Aggregator = require('../models/Aggregator');
 const axios = require('axios');
 
-// External API client
+// External API client (новый API: порт 3000, reverse-files, reverse-mapping)
 const externalApi = axios.create({
-    baseURL: process.env.EXTERNAL_API_BASE || 'http://94.131.88.146',
+    baseURL: process.env.EXTERNAL_API_BASE,
     headers: { 'Authorization': `Bearer ${process.env.EXTERNAL_API_TOKEN}` },
     timeout: 60000
 });
@@ -76,16 +76,16 @@ exports.getSyncStatus = async (req, res) => {
 
 exports.getMappedApiFiles = async (req, res) => {
     try {
-        const response = await externalApi.get('/api/csv-files');
+        const response = await externalApi.get('/api/reverse-files');
         const files = response.data.files || [];
         
-        // Get record counts for each file
-        const mappedFiles = files.filter(f => f.id.endsWith('_mapped'));
-        
-        // Enhance with additional info
-        const enhancedFiles = mappedFiles.map(f => ({
+        // Новый API: имена как в PowerShell (airba_fresh_almaty_mapped), id для запросов — без _mapped
+        const enhancedFiles = files.map(f => ({
             ...f,
-            display_name: f.id.replace(/_mapped$/, '').replace(/_/g, ' ').toUpperCase()
+            display_name: (f.name || f.id || '').replace(/_/g, ' ').toUpperCase(),
+            filename: f.filename || `${f.id}.json`,
+            // Для отображения в UI — как в списке PowerShell (с _mapped)
+            list_name: `${f.id}_mapped`
         }));
 
         res.json({ 

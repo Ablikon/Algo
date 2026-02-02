@@ -40,7 +40,7 @@ const AGGREGATOR_COLORS = {
 
 class ApiSyncService {
     constructor() {
-        this.baseUrl = process.env.EXTERNAL_API_BASE || 'http://94.131.88.146';
+        this.baseUrl = process.env.EXTERNAL_API_BASE;
         this.token = process.env.EXTERNAL_API_TOKEN;
         this.isSyncing = false;
         this.currentJob = null;
@@ -131,11 +131,11 @@ class ApiSyncService {
 
         try {
             // Get list of all files
-            const filesResponse = await this.client.get('/api/csv-files');
+            const filesResponse = await this.client.get('/api/reverse-files');
             const files = filesResponse.data.files || [];
             
-            // Filter only mapped files
-            const mappedFiles = files.filter(f => f.id.endsWith('_mapped'));
+            // Новый API: все файлы из reverse-files (id без _mapped)
+            const mappedFiles = files;
             
             this.progress.totalFiles = mappedFiles.length;
             this.progress.status = 'fetching';
@@ -202,7 +202,7 @@ class ApiSyncService {
     async processFile(fileId) {
         try {
             console.log(`  Fetching ${fileId}...`);
-            const response = await this.client.get(`/api/csv-data/${fileId}`);
+            const response = await this.client.get(`/api/reverse-mapping/${fileId}`);
             const records = response.data.data || [];
             
             if (records.length === 0) {
