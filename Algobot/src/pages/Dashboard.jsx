@@ -152,7 +152,7 @@ export default function Dashboard() {
         return (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
             <StatsCard
-              title="Лучшая цена"
+              title="Минимальная цена"
               value={stats?.products_at_top || 0}
               unit="товаров"
               subtitle={`Лидер: ${marketLeader}`}
