@@ -52,10 +52,18 @@ const aggregatorLogos = {
   ryadom: ryadomLogo,
 };
 
+const TOP_GAPS = 5;
+const EXPANDED_PAGE_SIZE = 20;
+
 export default function Analytics() {
   const [stats, setStats] = useState(null);
   const [gaps, setGaps] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAllGaps, setShowAllGaps] = useState(false);
+  const [gapsPage, setGapsPage] = useState(1);
+  const [totalGaps, setTotalGaps] = useState(0);
+  const [totalGapsPages, setTotalGapsPages] = useState(0);
+  const [gapsLoading, setGapsLoading] = useState(false);
   const { refreshKey, currentCity, loading: cityLoading } = useCity();
 
   useEffect(() => {
@@ -68,14 +76,44 @@ export default function Analytics() {
     try {
       const [statsRes, gapsRes] = await Promise.all([
         analyticsAPI.getDashboard(),
-        analyticsAPI.getGaps({ page_size: 5 }),
+        analyticsAPI.getGaps({ page: 1, page_size: TOP_GAPS }),
       ]);
       setStats(statsRes.data);
-      setGaps(gapsRes.data.results || []);
+      // Handle both array and { results: [...] } formats
+      const gapsData = Array.isArray(gapsRes.data) ? gapsRes.data : (gapsRes.data.results || []);
+      setGaps(gapsData);
+      setTotalGaps(gapsRes.data.total || gapsData.length);
+      setGapsPage(1);
+      setShowAllGaps(false);
     } catch (error) {
       console.error("Error fetching analytics data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchGapsPage = async (page) => {
+    setGapsLoading(true);
+    try {
+      const gapsRes = await analyticsAPI.getGaps({ page, page_size: EXPANDED_PAGE_SIZE });
+      const gapsData = Array.isArray(gapsRes.data) ? gapsRes.data : (gapsRes.data.results || []);
+      setGaps(gapsData);
+      setGapsPage(page);
+      setTotalGaps(gapsRes.data.total || gapsData.length);
+      setTotalGapsPages(gapsRes.data.total_pages || 1);
+    } catch (error) {
+      console.error("Error fetching gaps page:", error);
+    } finally {
+      setGapsLoading(false);
+    }
+  };
+
+  const handleShowAllGaps = () => {
+    if (!showAllGaps) {
+      fetchGapsPage(1);
+      setShowAllGaps(true);
+    } else {
+      fetchData();
     }
   };
 
@@ -162,18 +200,22 @@ export default function Analytics() {
               </div>
               <div>
                 <h3 className="text-base md:text-xl font-bold text-gray-900 dark:text-white">
-                  Упущенные возможности
+                  {showAllGaps ? 'Упущенные возможности' : 'Топ 5 упущенных возможностей'}
                 </h3>
                 <p className="text-xs md:text-sm text-gray-500 hidden sm:block">
-                  Товары, которые есть у конкурентов
+                  Товары, которые есть у конкурентов {totalGaps > 0 && `(${totalGaps})`}
                 </p>
               </div>
             </div>
-            <div className="px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl self-start">
-              <p className="text-[10px] md:text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
-                ТОП-5
-              </p>
-            </div>
+            {totalGaps > TOP_GAPS && (
+              <button
+                onClick={handleShowAllGaps}
+                disabled={gapsLoading}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {gapsLoading ? 'Загрузка...' : showAllGaps ? 'Свернуть' : `Смотреть все`}
+              </button>
+            )}
           </div>
 
           <div className="mb-6 p-4 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
@@ -188,7 +230,7 @@ export default function Analytics() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className={`overflow-x-auto ${showAllGaps ? 'min-h-[600px]' : ''}`}>
             <table className="w-full">
               <thead>
                 <tr className="border-b-2 border-gray-200 dark:border-slate-700">
@@ -209,25 +251,36 @@ export default function Analytics() {
               <tbody>
                 {gaps.map((item, idx) => (
                   <tr
-                    key={idx}
+                    key={item.product_id || idx}
                     className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
                   >
                     <td className="py-4 px-4">
-                      <div className="font-semibold text-gray-900 dark:text-white text-sm max-w-[300px] truncate">
-                        {item.product_name}
-                      </div>
+                      {item.product_url ? (
+                        <a
+                          href={item.product_url}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline text-sm max-w-[300px] truncate block"
+                        >
+                          {item.product_name}
+                        </a>
+                      ) : (
+                        <div className="font-semibold text-gray-900 dark:text-white text-sm max-w-[300px] truncate">
+                          {item.product_name}
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 px-4 text-sm text-gray-500 dark:text-gray-400">
                       {item.category || "—"}
                     </td>
                     <td className="py-4 px-4 text-center">
                       <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-400 font-bold text-xs">
-                        {item.competitor_count} агрегаторов
+                        {item.aggregator_count || item.competitor_count || 2} агрегаторов
                       </div>
                     </td>
                     <td className="py-4 px-4 text-right">
                       <div className="font-bold text-gray-900 dark:text-white">
-                        {item.min_competitor_price.toLocaleString()} ₸
+                        {(item.min_competitor_price || 0).toLocaleString()} ₸
                       </div>
                     </td>
                   </tr>
@@ -236,14 +289,44 @@ export default function Analytics() {
             </table>
           </div>
 
-          {gaps.length === 0 && (
+          {gaps.length === 0 && !gapsLoading && (
             <div className="text-center py-12 text-gray-400 flex flex-col items-center gap-3">
               <ShoppingBag className="w-8 h-8 opacity-20" />
               <p>Нет пропущенных товаров для отображения</p>
             </div>
           )}
 
-          <div className="mt-6 flex justify-end"></div>
+          {gapsLoading && (
+            <div className="text-center py-8">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-emerald-500" />
+            </div>
+          )}
+
+          {/* Pagination */}
+          {showAllGaps && totalGapsPages > 1 && (
+            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                Страница {gapsPage} из {totalGapsPages}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fetchGapsPage(gapsPage - 1)}
+                  disabled={gapsPage <= 1 || gapsLoading}
+                  className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  ← Назад
+                </button>
+                <button
+                  onClick={() => fetchGapsPage(gapsPage + 1)}
+                  disabled={gapsPage >= totalGapsPages || gapsLoading}
+                  className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Вперёд →
+                </button>
+              </div>
+            </div>
+          )}
+
         </motion.div>
 
         {/* Chart 2: Market Overlap */}

@@ -40,6 +40,8 @@ router.get('/dashboard', analyticsController.getDashboardStats);
 router.get('/dashboard/', analyticsController.getDashboardStats);
 router.get('/dashboard/gaps', analyticsController.getGaps);
 router.get('/dashboard/gaps/', analyticsController.getGaps);
+router.get('/analytics/gaps', analyticsController.getGaps);
+router.get('/analytics/gaps/', analyticsController.getGaps);
 router.get('/analytics/overlap', analyticsController.getAggregatorOverlap);
 router.get('/analytics/overlap/', analyticsController.getAggregatorOverlap);
 

@@ -102,9 +102,26 @@ exports.getDashboardStats = async (req, res) => {
 
 exports.getGaps = async (req, res) => {
     try {
-        const limit = parseInt(req.query.page_size) || 5;
+        const page = parseInt(req.query.page) || 1;
+        const pageSize = parseInt(req.query.page_size) || 50;
+        const skip = (page - 1) * pageSize;
         
         // Get products that appear in multiple aggregators (popular products)
+        // First, get total count
+        const countResult = await Price.aggregate([
+            { $match: { is_available: true, price: { $ne: null } } },
+            {
+                $group: {
+                    _id: '$product',
+                    aggregators: { $addToSet: '$aggregator' }
+                }
+            },
+            { $match: { 'aggregators.1': { $exists: true } } },
+            { $count: 'total' }
+        ]);
+        const total = countResult[0]?.total || 0;
+
+        // Get paginated data
         const productPrices = await Price.aggregate([
             { $match: { is_available: true, price: { $ne: null } } },
             {
@@ -115,9 +132,10 @@ exports.getGaps = async (req, res) => {
                     min_price: { $min: '$price' }
                 }
             },
-            { $match: { 'aggregators.1': { $exists: true } } }, // At least 2 aggregators
-            { $sort: { 'aggregators': -1 } },
-            { $limit: limit }
+            { $match: { 'aggregators.1': { $exists: true } } },
+            { $sort: { aggregators: -1 } },
+            { $skip: skip },
+            { $limit: pageSize }
         ]);
 
         // Get product details
@@ -126,17 +144,45 @@ exports.getGaps = async (req, res) => {
         const productMap = {};
         products.forEach(p => { productMap[p._id.toString()] = p; });
 
+        // Get product links (URLs) if available
+        const ProductLink = require('../models/ProductLink');
+        const productLinks = await ProductLink.find({ 
+            product: { $in: productIds },
+            url: { $ne: null, $exists: true }
+        }).lean();
+        const linkMap = {};
+        productLinks.forEach(link => {
+            const key = link.product.toString();
+            if (!linkMap[key] && link.url) {
+                linkMap[key] = link.url;
+            }
+        });
+
         const results = productPrices.map(pp => {
             const product = productMap[pp._id.toString()];
+            const productId = pp._id.toString();
             return {
+                product_id: productId,
                 product_name: product?.name || 'Unknown',
-                category: product?.category || null,
-                competitor_count: pp.aggregators.length,
-                min_competitor_price: pp.min_price
+                category: product?.category_name || null,
+                aggregator_count: pp.aggregators.length,
+                min_competitor_price: pp.min_price,
+                suggested_price: Math.round(pp.min_price - 1),
+                product_url: linkMap[productId] || null,
+                image_url: product?.image_url || null
             };
         });
 
-        res.json({ results, total: results.length });
+        // Sort by aggregator_count descending (most popular first)
+        results.sort((a, b) => b.aggregator_count - a.aggregator_count);
+
+        res.json({
+            results,
+            total,
+            page,
+            page_size: pageSize,
+            total_pages: Math.ceil(total / pageSize)
+        });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

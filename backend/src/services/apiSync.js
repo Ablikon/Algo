@@ -345,6 +345,36 @@ class ApiSyncService {
         if (priceOps.length > 0) {
             await Price.bulkWrite(priceOps, { ordered: false });
         }
+
+        // Save product links (URLs) if available
+        const ProductLink = require('../models/ProductLink');
+        const linkOps = [];
+        for (const [key, record] of recordsMap) {
+            // Only save if URL exists and is not empty
+            if (!record.url || record.url === '') continue;
+
+            const productId = productLookup.get(key) || productLookup.get(record.title);
+            if (!productId) continue;
+
+            linkOps.push({
+                updateOne: {
+                    filter: { product: productId, aggregator: aggregator._id },
+                    update: {
+                        $set: {
+                            url: record.url,
+                            external_name: record.title || null
+                        }
+                    },
+                    upsert: true
+                }
+            });
+        }
+
+        // Execute ProductLink upserts
+        if (linkOps.length > 0) {
+            await ProductLink.bulkWrite(linkOps, { ordered: false });
+            console.log(`    Saved ${linkOps.length} product links`);
+        }
     }
 
     async ensureAggregator(name) {
