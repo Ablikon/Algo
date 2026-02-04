@@ -2,21 +2,15 @@
 
 Короткие команды для локального запуска
 
-Backend (Django + PostgreSQL)
+Backend (Node.js + MongoDB)
 - Перейти в папку backend:
   cd backend
-- Создать и активировать venv:
-  python3 -m venv venv
-  source venv/bin/activate
 - Установить зависимости:
-  pip install -r requirements.txt
-- Установить переменные окружения (пример):
-  export DATABASE_URL='postgres://user:pass@host:5432/dbname'
-  export SECRET_KEY='your-secret'
-  export DEBUG='True'
-- Выполнить миграции и запустить:
-  python manage.py migrate
-  python manage.py runserver 0.0.0.0:8000
+  npm install
+- Создать .env для backend (локальный запуск берёт переменные из backend/.env):
+  cp .env.example .env   # если есть шаблон, иначе создайте вручную
+- Запустить:
+  npm run dev
 
 Frontend (React + Vite)
 - Перейти в папку проекта:
@@ -27,6 +21,10 @@ Frontend (React + Vite)
   VITE_API_URL='http://localhost:8000/api' npm run dev
 - Сборка для продакшна:
   VITE_API_URL='https://your-backend.example.com/api' npm run build
+
+Примечание по .env:
+- Локальный запуск backend читает только `backend/.env`.
+- Docker Compose читает корневой `.env` рядом с `docker-compose.yml`.
 
 Деплой
 - Фронтенд: Vercel — подключить репозиторий и в Settings → Environment Variables добавить VITE_API_URL.

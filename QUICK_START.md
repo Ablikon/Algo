@@ -21,6 +21,9 @@
 
 ## 🏃 Как запустить (3 простых шага)
 
+> Для локального backend используется `backend/.env`.
+> Для Docker Compose используется корневой `.env` (рядом с `docker-compose.yml`).
+
 ### Шаг 1: Запустить Backend
 ```bash
 cd backend

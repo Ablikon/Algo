@@ -18,6 +18,10 @@ npm install
 
 ### 2. Настройка окружения
 
+Важно:
+- **Локальный запуск backend** читает `backend/.env`.
+- **Docker Compose** читает **корневой** `.env` (рядом с `docker-compose.yml`).
+
 Проверьте файл `backend/.env`:
 ```env
 # MongoDB
@@ -35,6 +39,8 @@ API_HOST=0.0.0.0
 # Наша компания
 OUR_COMPANY_AGGREGATOR=Рядом
 ```
+
+Если используете Docker Compose — продублируйте нужные переменные в корневом `.env`.
 
 ### 3. Запуск серверов
 
