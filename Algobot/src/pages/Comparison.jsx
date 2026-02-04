@@ -242,7 +242,7 @@ export default function Comparison() {
 
             <AnimatePresence mode="wait">
               {showCategoryDropdown && (
-                <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-2 z-50 w-full sm:min-w-[280px]">
+                <div className="fixed sm:absolute top-auto sm:top-full right-4 sm:right-0 mt-2 z-50 max-w-[calc(100vw-2rem)]">
                   <CategoryTree
                     categories={categoryTree}
                     selectedCategories={selectedCategories}

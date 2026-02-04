@@ -79,22 +79,20 @@ function CategoryNode({ category, selectedCategories, onToggle, level = 0, searc
         </div>
 
         {/* Icon & Name */}
-        <div className="flex-1 flex items-center gap-2">
+        <div className="flex-1 flex items-center gap-2 min-w-0">
           {hasChildren ? (
-            isExpanded ? <FolderOpen className="w-4 h-4 text-amber-500" /> : <Folder className="w-4 h-4 text-amber-500" />
+            isExpanded ? <FolderOpen className="w-5 h-5 text-amber-500 shrink-0" /> : <Folder className="w-5 h-5 text-amber-500 shrink-0" />
           ) : (
-            <Layers className={`w-4 h-4 ${isSelected ? 'text-emerald-600' : 'text-gray-400'}`} />
+            <Layers className={`w-5 h-5 shrink-0 ${isSelected ? 'text-emerald-600' : 'text-gray-400'}`} />
           )}
-          <span className={`text-sm font-medium ${isSelected ? 'text-emerald-900' : 'text-gray-700'
-            }`}>
+          <span className={`text-sm font-medium truncate ${isSelected ? 'text-emerald-900' : 'text-gray-700'}`} title={category.name}>
             {category.name}
           </span>
         </div>
 
-        {/* Count Badge */}
+        {/* Product Count Badge - only show if > 0 */}
         {category.product_count > 0 && (
-          <span className={`text-xs px-2 py-0.5 rounded-full ${isSelected ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
-            }`}>
+          <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${isSelected ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
             {category.product_count}
           </span>
         )}
@@ -191,7 +189,7 @@ export default function CategoryTree({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-2xl p-3 min-w-[320px] max-w-[400px] max-h-[600px] flex flex-col overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-2xl p-4 w-[340px] sm:w-[400px] max-h-[70vh] flex flex-col overflow-hidden">
       {/* Search Header */}
       <div className="mb-4 space-y-3">
         <div className="relative">

@@ -28,7 +28,7 @@ export const aggregatorsAPI = {
 
 export const categoriesAPI = {
   getAll: () => api.get("/categories/"),
-  getTree: () => api.get("/categories/tree/"),
+  getTree: (onlyWithPrices = true) => api.get("/categories/tree/", { params: { only_with_prices: onlyWithPrices } }),
   create: (data) => api.post("/categories/", data),
   update: (id, data) => api.patch(`/categories/${id}`, data),
   delete: (id) => api.delete(`/categories/${id}`),

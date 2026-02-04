@@ -78,39 +78,187 @@ exports.getCategories = async (req, res) => {
 
 exports.getCategoryTree = async (req, res) => {
     try {
-        // Get all category product counts in ONE query
-        const counts = await Product.aggregate([
-            { $match: { category: { $ne: null } } },
-            { $group: { _id: '$category', count: { $sum: 1 } } }
+        const onlyWithPrices = req.query.only_with_prices === 'true';
+        const CategoryMapping = require('../models/CategoryMapping');
+        
+        // Get categories that have products WITH PRICES
+        const categoriesWithPrices = await Price.aggregate([
+            { $match: { price: { $ne: null } } },
+            { $lookup: {
+                from: 'products',
+                localField: 'product',
+                foreignField: '_id',
+                as: 'product'
+            }},
+            { $unwind: '$product' },
+            { $match: { 'product.category': { $ne: null } } },
+            { $group: { 
+                _id: '$product.category', 
+                productCount: { $addToSet: '$product._id' }
+            }},
+            { $project: {
+                _id: 1,
+                productCount: { $size: '$productCount' }
+            }}
         ]);
-        const countMap = new Map(counts.map(c => [c._id.toString(), c.count]));
-
-        // Get categories
-        const categories = await Category.find().lean();
         
-        // Build tree structure
-        const categoryMap = new Map();
-        const roots = [];
+        // Map: raw category ID -> product count
+        const rawCatProductCount = new Map(categoriesWithPrices.map(c => [
+            c._id.toString(), 
+            c.productCount
+        ]));
         
-        categories.forEach(cat => {
-            cat.id = cat._id.toString();
-            cat.product_count = countMap.get(cat.id) || 0;
-            cat.children = [];
-            categoryMap.set(cat.id, cat);
+        // Get all raw categories that have products with prices
+        const rawCatIds = categoriesWithPrices.map(c => c._id);
+        const rawCategories = await Category.find({ _id: { $in: rawCatIds } }).lean();
+        
+        // Get mappings for these raw categories to find their unified parents
+        const rawCatNames = rawCategories.map(c => c.name);
+        const mappings = await CategoryMapping.find({
+            raw_category: { $in: rawCatNames }
+        }).populate('master_category').lean();
+        
+        // Build unified category tree with product counts
+        const unifiedCatMap = new Map(); // unified cat ID -> { name, parent, productCount, children }
+        
+        // First, add raw categories that have prices (as potential leaves)
+        rawCategories.forEach(rawCat => {
+            const count = rawCatProductCount.get(rawCat._id.toString()) || 0;
+            if (count > 0) {
+                unifiedCatMap.set(rawCat._id.toString(), {
+                    _id: rawCat._id,
+                    id: rawCat._id.toString(),
+                    name: rawCat.name,
+                    parent: rawCat.parent,
+                    product_count: count,
+                    children: [],
+                    is_raw: true
+                });
+            }
         });
         
-        categories.forEach(cat => {
+        // Now process mappings to find unified parents
+        for (const mapping of mappings) {
+            if (!mapping.master_category) continue;
+            
+            const masterId = mapping.master_category._id.toString();
+            const masterName = mapping.master_category.name;
+            const masterParent = mapping.master_category.parent;
+            
+            // Find raw category with products for this mapping
+            const rawCat = rawCategories.find(c => c.name === mapping.raw_category);
+            if (!rawCat) continue;
+            
+            const rawCount = rawCatProductCount.get(rawCat._id.toString()) || 0;
+            if (rawCount === 0) continue;
+            
+            // Add or update unified category
+            if (!unifiedCatMap.has(masterId)) {
+                unifiedCatMap.set(masterId, {
+                    _id: mapping.master_category._id,
+                    id: masterId,
+                    name: masterName,
+                    parent: masterParent,
+                    product_count: 0,
+                    children: [],
+                    is_unified: true
+                });
+            }
+            
+            // Add product count to unified category
+            const unified = unifiedCatMap.get(masterId);
+            unified.product_count += rawCount;
+        }
+        
+        // Build tree - recursively get ALL parent categories up to root
+        const allParentIds = new Set();
+        const getParents = async (parentId) => {
+            if (!parentId || allParentIds.has(parentId.toString())) return;
+            allParentIds.add(parentId.toString());
+            const parent = await Category.findById(parentId).lean();
+            if (parent && parent.parent) {
+                await getParents(parent.parent);
+            }
+        };
+        
+        for (const cat of unifiedCatMap.values()) {
             if (cat.parent) {
-                const parent = categoryMap.get(cat.parent.toString());
-                if (parent) {
+                await getParents(cat.parent);
+            }
+        }
+        
+        // Fetch all parent categories
+        const parentCategories = await Category.find({ 
+            _id: { $in: Array.from(allParentIds) } 
+        }).lean();
+        
+        // Add parent categories to map
+        parentCategories.forEach(parent => {
+            const parentId = parent._id.toString();
+            if (!unifiedCatMap.has(parentId)) {
+                unifiedCatMap.set(parentId, {
+                    _id: parent._id,
+                    id: parentId,
+                    name: parent.name,
+                    parent: parent.parent,
+                    product_count: 0,
+                    children: [],
+                    is_unified: true
+                });
+            }
+        });
+        
+        // Build tree structure - handle multi-level hierarchy
+        const roots = [];
+        const processed = new Set();
+        
+        // First pass: link children to parents
+        unifiedCatMap.forEach(cat => {
+            if (cat.parent) {
+                const parentId = cat.parent.toString();
+                const parent = unifiedCatMap.get(parentId);
+                if (parent && !parent.children.find(c => c.id === cat.id)) {
                     parent.children.push(cat);
                 }
-            } else {
+            }
+        });
+        
+        // Second pass: propagate product counts up the tree
+        const propagateCounts = (cat) => {
+            if (processed.has(cat.id)) return cat.product_count;
+            processed.add(cat.id);
+            
+            let totalCount = cat.product_count || 0;
+            for (const child of cat.children) {
+                totalCount += propagateCounts(child);
+            }
+            cat.product_count = totalCount;
+            return totalCount;
+        };
+        
+        // Find roots and propagate
+        unifiedCatMap.forEach(cat => {
+            if (!cat.parent) {
                 roots.push(cat);
             }
         });
+        
+        roots.forEach(root => propagateCounts(root));
+        
+        // Recursive filter and sort
+        const filterAndSort = (cats) => {
+            return cats
+                .filter(cat => cat.product_count > 0)
+                .map(cat => ({
+                    ...cat,
+                    children: filterAndSort(cat.children || [])
+                }))
+                .sort((a, b) => (b.product_count || 0) - (a.product_count || 0));
+        };
+        
+        const result = filterAndSort(roots);
 
-        res.json(roots);
+        res.json(result);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

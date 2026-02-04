@@ -8,6 +8,7 @@ const importController = require('../controllers/importController');
 const recommendationsController = require('../controllers/recommendationsController');
 const verificationController = require('../controllers/verificationController');
 const ryadomController = require('../controllers/ryadomController');
+const categoryController = require('../controllers/categoryController');
 
 // Aggregators & Cities
 router.get('/aggregators', baseController.getAggregators);
@@ -87,5 +88,15 @@ router.get('/ryadom/status', ryadomController.getBqStatus);
 router.post('/ryadom/load-bq', ryadomController.loadBqResults);
 router.post('/ryadom/link', ryadomController.linkProductsToRyadom);
 router.get('/ryadom/products', ryadomController.getRyadomProducts);
+
+// Category matching and management
+router.get('/categories/unified', categoryController.getUnifiedCategories);
+router.get('/categories/mappings', categoryController.getCategoryMappings);
+router.put('/categories/mappings/:id', categoryController.updateMapping);
+router.post('/categories/process', categoryController.processCategories);
+router.get('/categories/status', categoryController.getStatus);
+router.get('/categories/unverified', categoryController.getUnverifiedMappings);
+router.get('/categories/masters', categoryController.getMasterCategories);
+router.post('/categories/mappings/:id/verify', categoryController.verifyMapping);
 
 module.exports = router;

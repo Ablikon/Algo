@@ -276,6 +276,15 @@ class ApiSyncService {
             // Store for later price creation
             recordsMap.set(key, record);
 
+            // Get category from record
+            const categoryName = record.category || record.category_full_path;
+            let categoryId = null;
+            
+            // Skip technical categories like "Publication 123"
+            if (categoryName && !categoryName.startsWith('Publication ')) {
+                categoryId = await this.ensureCategory(categoryName);
+            }
+
             const productUpdate = {
                 name: title,
                 grouping_id: matchedUuid,
@@ -283,6 +292,11 @@ class ApiSyncService {
                 image_url: record.url_picture || record.url || null,
                 sku: record.product_id || record.id || null
             };
+            
+            // Only update category if we have one (don't overwrite existing)
+            if (categoryId) {
+                productUpdate.category = categoryId;
+            }
 
             productOps.push({
                 updateOne: {
@@ -395,24 +409,70 @@ class ApiSyncService {
     async ensureCategory(categoryPath) {
         try {
             // Parse category path like "Продукты питания > Молочные продукты, яйца > Молоко, сливки"
-            const parts = categoryPath.split(' > ').map(p => p.trim());
+            const parts = categoryPath.split(' > ').map(p => p.trim()).filter(p => p.length > 0);
             
             if (parts.length === 0) return null;
 
             // Use the last (most specific) category
             const categoryName = parts[parts.length - 1];
             
-            let category = await Category.findOne({ name: categoryName });
+            // Skip technical categories
+            if (/^Publication \d+$/.test(categoryName) || /^[a-f0-9]{20,}$/i.test(categoryName)) {
+                return null;
+            }
+            
+            // First try to find existing category (case-insensitive)
+            let category = await Category.findOne({ 
+                name: { $regex: new RegExp(`^${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+            });
             
             if (!category) {
+                // Try to find a parent category based on the path
+                let parentId = null;
+                
+                // Map common category paths to parent categories
+                const categoryMappings = {
+                    'Газированные напитки': 'Напитки',
+                    'Соки': 'Напитки',
+                    'Вода': 'Напитки',
+                    'Холодные чаи': 'Напитки',
+                    'Энергетики': 'Напитки',
+                    'Молоко': 'Молочные продукты',
+                    'Йогурт': 'Молочные продукты',
+                    'Кефир': 'Молочные продукты',
+                    'Сыр': 'Сыры',
+                    'Чипсы': 'Снеки',
+                    'Сухарики': 'Снеки',
+                    'Орехи': 'Бакалея',
+                    'Шоколад': 'Кондитерские изделия',
+                    'Печенье': 'Кондитерские изделия',
+                    'Конфеты': 'Кондитерские изделия',
+                    'Колбаса': 'Мясные изделия',
+                    'Сосиски': 'Мясные изделия'
+                };
+                
+                // Try to find parent based on category name keywords
+                for (const [keyword, parentName] of Object.entries(categoryMappings)) {
+                    if (categoryName.toLowerCase().includes(keyword.toLowerCase())) {
+                        const parent = await Category.findOne({ name: parentName, parent: null });
+                        if (parent) {
+                            parentId = parent._id;
+                            break;
+                        }
+                    }
+                }
+                
+                // Create the category
                 category = await Category.create({
                     name: categoryName,
+                    parent: parentId,
                     icon: '📦'
                 });
             }
             
             return category._id;
         } catch (err) {
+            console.error('ensureCategory error:', err.message);
             return null;
         }
     }
