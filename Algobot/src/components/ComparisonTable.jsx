@@ -124,16 +124,20 @@ export default function ComparisonTable({ products, compact = false, showNormali
       fontWeight = "font-medium";
     }
 
+    const hasProductUrl = !!priceData.product_url;
+    
     const priceContent = (
-      <div className="inline-flex flex-col items-center group/price cursor-pointer relative">
+      <div className={`inline-flex flex-col items-center group/price relative ${hasProductUrl ? 'cursor-pointer' : ''}`}>
         <div className="flex items-center justify-center">
           <span className={`text-sm ${textColor} ${fontWeight}`}>
             {formatPrice(price)}
           </span>
-          {/* Icon positioned absolute to the right to avoid shifting the centered price */}
-          <div className="absolute left-full ml-1.5 top-1/2 -translate-y-1/2">
-            <ExternalLink className="w-3.5 h-3.5 text-blue-500 opacity-0 group-hover/price:opacity-100 transition-all" />
-          </div>
+          {/* Icon positioned absolute to the right - only show if URL exists */}
+          {hasProductUrl && (
+            <div className="absolute left-full ml-1.5 top-1/2 -translate-y-1/2">
+              <ExternalLink className="w-3.5 h-3.5 text-blue-500 opacity-0 group-hover/price:opacity-100 transition-all" />
+            </div>
+          )}
         </div>
 
         {showNormalized && normalizedPrice && (
@@ -144,17 +148,29 @@ export default function ComparisonTable({ products, compact = false, showNormali
       </div>
     );
 
+    // Use real product URL if available, otherwise don't make it a link
+    const productUrl = priceData.product_url;
+    
+    if (productUrl) {
+      return (
+        <a
+          href={productUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block py-2 px-4 hover:bg-blue-50/50 rounded-xl transition-all"
+          onClick={(e) => e.stopPropagation()}
+          title={`Открыть на ${aggregator}`}
+        >
+          {priceContent}
+        </a>
+      );
+    }
+    
+    // No URL available - just show price without link
     return (
-      <a
-        href="https://google.com"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-block py-2 px-4 hover:bg-blue-50/50 rounded-xl transition-all"
-        onClick={(e) => e.stopPropagation()}
-        title={`Перейти на сайт (${aggregator})`}
-      >
+      <div className="inline-block py-2 px-4">
         {priceContent}
-      </a>
+      </div>
     );
   };
 

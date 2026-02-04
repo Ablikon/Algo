@@ -253,6 +253,26 @@ class ApiSyncService {
         const productOps = [];
         const recordsMap = new Map(); // key -> record for price creation
 
+        // First pass: collect all unique categories
+        const categoryNames = new Set();
+        for (const record of records) {
+            if (record.match === true && record.title) {
+                const catName = record.category || record.category_full_path;
+                if (catName && !catName.startsWith('Publication ') && !/^[a-f0-9]{20,}$/i.test(catName)) {
+                    categoryNames.add(catName);
+                }
+            }
+        }
+        
+        // Batch load/create categories
+        const categoryMap = new Map();
+        if (categoryNames.size > 0) {
+            const existingCats = await Category.find({ 
+                name: { $in: [...categoryNames] } 
+            }).lean();
+            existingCats.forEach(c => categoryMap.set(c.name, c._id));
+        }
+
         for (const record of records) {
             // NEW FORMAT: 
             // - csv_name, csv_brand: OUR product data (already in DB via bq-results/Рядом)
@@ -276,14 +296,9 @@ class ApiSyncService {
             // Store for later price creation
             recordsMap.set(key, record);
 
-            // Get category from record
+            // Get category from pre-loaded map
             const categoryName = record.category || record.category_full_path;
-            let categoryId = null;
-            
-            // Skip technical categories like "Publication 123"
-            if (categoryName && !categoryName.startsWith('Publication ')) {
-                categoryId = await this.ensureCategory(categoryName);
-            }
+            let categoryId = categoryMap.get(categoryName) || null;
 
             const productUpdate = {
                 name: title,
@@ -339,6 +354,29 @@ class ApiSyncService {
             const productId = productLookup.get(key) || productLookup.get(record.title);
             if (!productId) continue;
 
+            // Build product URL from available data
+            // Check for non-empty URL string (not null, undefined, or "")
+            let productUrl = (record.url && record.url.trim() !== '') ? record.url : null;
+            
+            // If no direct URL, try to construct a search URL
+            if (!productUrl) {
+                const aggName = aggregator.name;
+                const title = record.title || record.csv_name || '';
+                
+                if (aggName === 'Airba Fresh' || aggName === 'Wolt') {
+                    // Wolt/Airba: search by product title
+                    if (title) {
+                        productUrl = `https://wolt.com/kz/kaz/search?q=${encodeURIComponent(title)}`;
+                    }
+                } else if (aggName === 'Magnum') {
+                    // Magnum: search by title on Magnum catalog
+                    if (title) {
+                        productUrl = `https://magnum.kz/catalog?q=${encodeURIComponent(title)}`;
+                    }
+                }
+                // Arbuz.kz and Yandex Lavka already have URLs in the API data
+            }
+
             priceOps.push({
                 updateOne: {
                     filter: { product: productId, aggregator: aggregator._id },
@@ -347,7 +385,8 @@ class ApiSyncService {
                             price: price,
                             is_available: record.available !== false,
                             last_updated: new Date(),
-                            competitor_brand: record.brand || null
+                            competitor_brand: record.brand || null,
+                            product_url: productUrl
                         }
                     },
                     upsert: true

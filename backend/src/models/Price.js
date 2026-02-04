@@ -28,6 +28,10 @@ const priceSchema = new mongoose.Schema({
         type: String,
         default: null
     },
+    product_url: {
+        type: String,
+        default: null
+    },
     city: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'City',

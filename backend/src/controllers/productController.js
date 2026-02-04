@@ -242,7 +242,8 @@ exports.getProductComparison = async (req, res) => {
                         price: p.price,
                         is_available: p.is_available,
                         last_updated: p.last_updated,
-                        is_our_company: aggInfo.is_our_company
+                        is_our_company: aggInfo.is_our_company,
+                        product_url: p.product_url || null
                     };
 
                     if (p.price && p.price < minPrice) {
