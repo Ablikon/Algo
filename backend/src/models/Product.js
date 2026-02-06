@@ -6,6 +6,11 @@ const productSchema = new mongoose.Schema({
         required: true,
         index: true
     },
+    normalized_name: {
+        type: String,
+        default: null,
+        index: true
+    },
     grouping_id: {
         type: String,
         index: true,

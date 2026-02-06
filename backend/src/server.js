@@ -46,6 +46,12 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Routes
 app.use('/api', require('./routes/api'));
 
+// Import routes
+const importRoutes = require('./routes/import');
+
+// Register routes
+app.use('/api/import', importRoutes);
+
 // Error handler
 app.use((err, req, res, next) => {
     console.error('Error:', err);

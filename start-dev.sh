@@ -11,6 +11,22 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Simple retry helper
+wait_for_url() {
+  local url="$1"
+  local name="$2"
+  local retries="${3:-20}"
+  local delay="${4:-1}"
+  for i in $(seq 1 "$retries"); do
+    if curl -fsS "$url" > /dev/null; then
+      return 0
+    fi
+    sleep "$delay"
+  done
+  echo "❌ ${name} failed to start. Check logs:"
+  return 1
+}
+
 # Kill any existing processes
 echo "🧹 Cleaning up existing processes..."
 lsof -ti:8000 | xargs kill -9 2>/dev/null || true
@@ -26,15 +42,12 @@ BACKEND_PID=$!
 echo "Backend PID: $BACKEND_PID"
 cd ..
 
-# Wait for backend to start
-sleep 3
-
-# Check if backend is running
-if curl -s http://localhost:8000/api/aggregators/ > /dev/null; then
-    echo -e "${GREEN}✅ Backend is running on http://localhost:8000${NC}"
+# Wait for backend to start (retry)
+if wait_for_url "http://localhost:8000/api/aggregators/" "Backend"; then
+  echo -e "${GREEN}✅ Backend is running on http://localhost:8000${NC}"
 else
-    echo "❌ Backend failed to start. Check /tmp/scoutalgo-backend.log"
-    exit 1
+  tail -n 80 /tmp/scoutalgo-backend.log
+  exit 1
 fi
 
 # Start Frontend
@@ -46,15 +59,12 @@ FRONTEND_PID=$!
 echo "Frontend PID: $FRONTEND_PID"
 cd ..
 
-# Wait for frontend to start
-sleep 5
-
-# Check if frontend is running
-if curl -s http://localhost:5173/ > /dev/null; then
-    echo -e "${GREEN}✅ Frontend is running on http://localhost:5173${NC}"
+# Wait for frontend to start (retry)
+if wait_for_url "http://localhost:5173/" "Frontend" 30 1; then
+  echo -e "${GREEN}✅ Frontend is running on http://localhost:5173${NC}"
 else
-    echo "❌ Frontend failed to start. Check /tmp/scoutalgo-frontend.log"
-    exit 1
+  tail -n 80 /tmp/scoutalgo-frontend.log
+  exit 1
 fi
 
 echo ""
