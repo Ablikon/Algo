@@ -121,11 +121,11 @@ export default function Analytics() {
   const ryadomStats = stats?.aggregator_stats?.['Рядом'];
   const totalOurProducts = ryadomStats?.count || 0;
   
-  // Competitor data - show actual product counts per aggregator
+  // Competitor data - show actual product counts per aggregator (including Рядом)
   const overlapData = stats?.aggregator_stats
     ? Object.entries(stats.aggregator_stats)
         .map(([name, data]) => {
-          const normalizedKey = name.toLowerCase().replace(".kz", "").trim();
+          const normalizedKey = name.toLowerCase().replace(".kz", "").replace("рядом", "ryadom").trim();
           return {
             name,
             normalizedKey,
@@ -134,12 +134,7 @@ export default function Analytics() {
             color: aggregatorColors[normalizedKey] || "#cbd5e1",
           };
         })
-        .filter(
-          (item) =>
-            item.normalizedKey !== "ryadom" &&
-            item.name.toLowerCase().trim() !== "рядом" &&
-            item.value > 0, // Only show aggregators with products
-        )
+        .filter(item => item.value > 0) // Only show aggregators with products
         .sort((a, b) => b.value - a.value)
     : [];
 
@@ -350,11 +345,6 @@ export default function Analytics() {
                 </p>
               </div>
             </div>
-            <div className="px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl self-start">
-              <p className="text-[10px] md:text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
-                Рядом: {totalOurProducts.toLocaleString()} товаров
-              </p>
-            </div>
           </div>
 
           <div className="mb-4 p-4 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
@@ -370,7 +360,6 @@ export default function Analytics() {
 
           <div className="space-y-6 mt-4">
             {overlapData.map((item, idx) => {
-              const normalizedName = item.name.toLowerCase().replace(".kz", "");
               const maxValue = overlapData[0]?.value || 1;
               const percentage = Math.round((item.value / maxValue) * 100);
 
@@ -378,9 +367,9 @@ export default function Analytics() {
                 <div key={item.name} className="flex items-center gap-4 group">
                   {/* Logo Container */}
                   <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center p-2 border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden flex-shrink-0 transition-transform group-hover:scale-105">
-                    {aggregatorLogos[normalizedName] ? (
+                    {aggregatorLogos[item.normalizedKey] ? (
                       <img
-                        src={aggregatorLogos[normalizedName]}
+                        src={aggregatorLogos[item.normalizedKey]}
                         alt={item.name}
                         className="w-full h-full object-contain"
                       />
@@ -389,7 +378,7 @@ export default function Analytics() {
                         className="w-full h-full flex items-center justify-center text-white font-bold text-xs rounded-lg"
                         style={{
                           backgroundColor:
-                            aggregatorColors[normalizedName] || "#cbd5e1",
+                            aggregatorColors[item.normalizedKey] || "#cbd5e1",
                         }}
                       >
                         {item.name.substring(0, 2).toUpperCase()}
@@ -405,7 +394,7 @@ export default function Analytics() {
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-black text-gray-900 dark:text-white">
-                          {item.value} ТОВАРОВ
+                          {item.value.toLocaleString('ru-RU')} ТОВАРОВ
                         </span>
                       </div>
                     </div>
@@ -436,20 +425,6 @@ export default function Analytics() {
               </div>
             )}
           </div>
-
-          {/* New Compact Insights */}
-          {overlapData.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-slate-700">
-              <div className="p-4 bg-gray-50/50 dark:bg-slate-700/30 rounded-2xl inline-block min-w-[200px]">
-                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">
-                  Макс. пересечение
-                </p>
-                <p className="text-sm font-black text-gray-900 dark:text-white truncate">
-                  {overlapData[0]?.name}
-                </p>
-              </div>
-            </div>
-          )}
         </motion.div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 const Product = require('../models/Product');
 const Price = require('../models/Price');
 const Aggregator = require('../models/Aggregator');
+const Category = require('../models/Category');
 
 exports.getDashboardStats = async (req, res) => {
     try {
@@ -138,9 +139,9 @@ exports.getGaps = async (req, res) => {
             { $limit: pageSize }
         ]);
 
-        // Get product details
+        // Get product details with category
         const productIds = productPrices.map(p => p._id);
-        const products = await Product.find({ _id: { $in: productIds } }).lean();
+        const products = await Product.find({ _id: { $in: productIds } }).populate('category').lean();
         const productMap = {};
         products.forEach(p => { productMap[p._id.toString()] = p; });
 
@@ -164,7 +165,7 @@ exports.getGaps = async (req, res) => {
             return {
                 product_id: productId,
                 product_name: product?.name || 'Unknown',
-                category: product?.category_name || null,
+                category: product?.category?.name || null,
                 aggregator_count: pp.aggregators.length,
                 min_competitor_price: pp.min_price,
                 suggested_price: Math.round(pp.min_price - 1),
