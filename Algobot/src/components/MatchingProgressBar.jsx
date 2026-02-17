@@ -1,8 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { importAPI } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const MatchingProgressBar = () => {
+    const { t } = useLanguage();
     const [status, setStatus] = useState(null);
     const [visible, setVisible] = useState(false);
 
@@ -58,16 +59,16 @@ const MatchingProgressBar = () => {
             <div className="flex justify-between items-center mb-2">
                 <div>
                     <h3 className="text-sm font-semibold text-gray-700">
-                        {status.is_running ? 'AI Product Matching in Progress...' : 'Matching Completed'}
+                        {status.is_running ? t("matchingInProgress") : t("matchingCompleted")}
                     </h3>
                     <p className="text-xs text-gray-500">
-                        {status.current_product || 'Initializing...'}
+                        {status.current_product || t("initializing")}
                     </p>
                 </div>
                 <div className="text-right">
                     <span className="text-2xl font-bold text-gray-800">{percentage}%</span>
                     <p className="text-xs text-gray-500">
-                        {status.matched} matched / {status.processed} processed
+                        {status.matched} {t("matched")} / {status.processed} {t("processed")}
                     </p>
                 </div>
             </div>
@@ -80,8 +81,8 @@ const MatchingProgressBar = () => {
             </div>
 
             <div className="flex justify-between mt-2 text-xs text-gray-400">
-                <span>Total: {status.total} products</span>
-                <span>Errors: {status.errors}</span>
+                <span>{t("total")}: {status.total} {t("productsLower")}</span>
+                <span>{t("errors")}: {status.errors}</span>
             </div>
         </div>
     );

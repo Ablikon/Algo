@@ -1,4 +1,5 @@
 import { Scale, ExternalLink, Trophy, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const aggregatorColors = {
   glovo: '#00A082',
@@ -11,6 +12,7 @@ const aggregatorColors = {
 };
 
 export default function ComparisonTable({ products, compact = false, showNormalized = false, onToggleNormalized, aggregators: propAggregators }) {
+  const { t } = useLanguage();
   const availableAggregators = propAggregators || window.allAggregators || [];
 
   const allAggregatorNames = availableAggregators.length > 0
@@ -22,7 +24,7 @@ export default function ComparisonTable({ products, compact = false, showNormali
     // Find our company price - checking for is_our_company flag in prices
     let ourPriceVal = null;
     let minPriceAggregator = null;
-    
+
     Object.entries(product.prices || {}).forEach(([aggName, p]) => {
       if (p.is_our_company) ourPriceVal = p.price;
       if (p.price === minPrice) minPriceAggregator = aggName;
@@ -38,21 +40,21 @@ export default function ComparisonTable({ products, compact = false, showNormali
       if (minPriceAggregator) {
         return { type: 'info', text: minPriceAggregator, color: 'blue' };
       }
-      return { type: 'missing', text: 'Нет цены', color: 'gray' };
+      return { type: 'missing', text: t("noPrice"), color: 'gray' };
     }
-    
-    if (!minPrice) return { type: 'exclusive', text: 'Эксклюзив', color: 'blue' };
+
+    if (!minPrice) return { type: 'exclusive', text: t("exclusive"), color: 'blue' };
 
     if (ourPriceVal === minPrice) {
-      return { type: 'success', text: 'Лучшая цена', color: 'emerald' };
+      return { type: 'success', text: t("bestPrice"), color: 'emerald' };
     }
 
     if (ourPriceVal > minPrice) {
       const diffPercent = Math.round(((ourPriceVal - minPrice) / minPrice) * 100);
-      return { type: 'warning', text: `Дороже на ${diffPercent}%`, color: 'rose' };
+      return { type: 'warning', text: `${t("moreExpensiveBy")} ${diffPercent}%`, color: 'rose' };
     }
 
-    return { type: 'neutral', text: 'Ок', color: 'gray' };
+    return { type: 'neutral', text: t("ok"), color: 'gray' };
   };
 
   const getVerdictBadge = (verdict) => {
@@ -125,7 +127,7 @@ export default function ComparisonTable({ products, compact = false, showNormali
     }
 
     const hasProductUrl = !!priceData.product_url;
-    
+
     const priceContent = (
       <div className={`inline-flex flex-col items-center group/price relative ${hasProductUrl ? 'cursor-pointer' : ''}`}>
         <div className="flex items-center justify-center">
@@ -150,7 +152,7 @@ export default function ComparisonTable({ products, compact = false, showNormali
 
     // Use real product URL if available, otherwise don't make it a link
     const productUrl = priceData.product_url;
-    
+
     if (productUrl) {
       return (
         <a
@@ -165,7 +167,7 @@ export default function ComparisonTable({ products, compact = false, showNormali
         </a>
       );
     }
-    
+
     // No URL available - just show price without link
     return (
       <div className="inline-block py-2 px-4">
@@ -205,8 +207,7 @@ export default function ComparisonTable({ products, compact = false, showNormali
               : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
               }`}
           >
-            <Scale className="w-4 h-4" />
-            {showNormalized ? 'Цена за шт' : 'Цена за ед.'}
+            {showNormalized ? t("pricePerItem") : t("pricePerUnit")}
           </button>
         </div>
       )}
@@ -216,11 +217,11 @@ export default function ComparisonTable({ products, compact = false, showNormali
           <thead>
             <tr className="bg-gray-50/50 border-b border-gray-200">
               <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[250px]">
-                Товар
+                {t("product")}
               </th>
 
               <th className="py-4 px-6 text-center text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[160px]">
-                Вердикт
+                {t("verdict")}
               </th>
 
               {sortedAggregators.map((agg, idx) => {
@@ -295,7 +296,7 @@ export default function ComparisonTable({ products, compact = false, showNormali
 
       {displayProducts.length === 0 && (
         <div className="text-center py-16 text-gray-500">
-          Нет данных для отображения
+          {t("noDataToDisplay")}
         </div>
       )}
     </div>

@@ -16,46 +16,50 @@ import {
 } from "lucide-react";
 import { importAPI } from "../services/api";
 import api from "../services/api";
+import { useLanguage } from "../contexts/LanguageContext";
 
-const verdictStyles = {
-  correct: {
-    label: "Корректно",
-    color: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    icon: CheckCircle2,
-  },
-  needs_review: {
-    label: "Проверить",
-    color: "bg-amber-100 text-amber-700 border-amber-200",
-    icon: AlertTriangle,
-  },
-  likely_wrong: {
-    label: "Ошибка",
-    color: "bg-rose-100 text-rose-700 border-rose-200",
-    icon: XCircle,
-  },
-  unmapped: {
-    label: "Не замаплено",
-    color: "bg-gray-100 text-gray-600 border-gray-200",
-    icon: FileQuestion,
-  },
-  not_found: {
-    label: "Не найдено",
-    color: "bg-slate-100 text-slate-600 border-slate-200",
-    icon: FileQuestion,
-  },
-  corrected: {
-    label: "Исправлено",
-    color: "bg-blue-100 text-blue-700 border-blue-200",
-    icon: Check,
-  },
-  deleted: {
-    label: "Удалено",
-    color: "bg-gray-100 text-gray-500 border-gray-200",
-    icon: Trash2,
-  },
-};
+
 
 export default function MappingReview() {
+  const { t } = useLanguage();
+
+  const verdictStyles = {
+    correct: {
+      label: t("correctVerdict"),
+      color: "bg-emerald-100 text-emerald-700 border-emerald-200",
+      icon: CheckCircle2,
+    },
+    needs_review: {
+      label: t("needsReviewVerdict"),
+      color: "bg-amber-100 text-amber-700 border-amber-200",
+      icon: AlertTriangle,
+    },
+    likely_wrong: {
+      label: t("errorVerdict"),
+      color: "bg-rose-100 text-rose-700 border-rose-200",
+      icon: XCircle,
+    },
+    unmapped: {
+      label: t("unmappedVerdict"),
+      color: "bg-gray-100 text-gray-600 border-gray-200",
+      icon: FileQuestion,
+    },
+    not_found: {
+      label: t("notFoundVerdict"),
+      color: "bg-slate-100 text-slate-600 border-slate-200",
+      icon: FileQuestion,
+    },
+    corrected: {
+      label: t("correctedVerdict"),
+      color: "bg-blue-100 text-blue-700 border-blue-200",
+      icon: Check,
+    },
+    deleted: {
+      label: t("deletedVerdict"),
+      color: "bg-gray-100 text-gray-500 border-gray-200",
+      icon: Trash2,
+    },
+  };
   const [limit, setLimit] = useState("50");
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState(null);
@@ -94,7 +98,7 @@ export default function MappingReview() {
 
   const handleReviewFromApi = async () => {
     if (!selectedApiFile) {
-      alert("Выбери mapped-файл из списка");
+      alert(t("selectMappedFileAlert"));
       return;
     }
 
@@ -102,7 +106,7 @@ export default function MappingReview() {
     try {
       const params = {
         file_id: selectedApiFile,
-        source_aggregator: "Рядом",
+        source_aggregator: t("ryadom"),
         mode: "verify_existing",
       };
       if (limit) params.limit = Number(limit);
@@ -112,8 +116,8 @@ export default function MappingReview() {
       setResults(response.data.results || []);
     } catch (error) {
       alert(
-        "Ошибка при проверке: " +
-          (error.response?.data?.error || error.message),
+        t("errorDuringVerification") +
+        (error.response?.data?.error || error.message),
       );
     } finally {
       setLoading(false);
@@ -126,7 +130,7 @@ export default function MappingReview() {
       setSearchResults([]);
       return;
     }
-    
+
     setSearchLoading(true);
     try {
       const response = await api.get('/mapping/search-products', {
@@ -154,7 +158,7 @@ export default function MappingReview() {
   // Save correction (change to correct product)
   const saveCorrection = async (product) => {
     if (!editModal) return;
-    
+
     setSavingCorrection(true);
     try {
       const item = editModal.item;
@@ -183,14 +187,14 @@ export default function MappingReview() {
           brand: product.brand,
           id: product.id
         },
-        reason: 'Исправлено вручную'
+        reason: t("correctedManually")
       };
       setResults(newResults);
       setEditModal(null);
       setProductSearch("");
       setSearchResults([]);
     } catch (error) {
-      alert("Ошибка сохранения: " + (error.response?.data?.error || error.message));
+      alert(t("errorSaving") + (error.response?.data?.error || error.message));
     } finally {
       setSavingCorrection(false);
     }
@@ -199,7 +203,7 @@ export default function MappingReview() {
   // Delete mapping
   const deleteMapping = async () => {
     if (!editModal) return;
-    
+
     setSavingCorrection(true);
     try {
       const item = editModal.item;
@@ -222,14 +226,14 @@ export default function MappingReview() {
       newResults[editModal.index] = {
         ...item,
         verdict: 'deleted',
-        reason: 'Матч удалён (нет соответствия)'
+        reason: t("matchDeleted")
       };
       setResults(newResults);
       setEditModal(null);
       setProductSearch("");
       setSearchResults([]);
     } catch (error) {
-      alert("Ошибка удаления: " + (error.response?.data?.error || error.message));
+      alert(t("errorDeleting") + (error.response?.data?.error || error.message));
     } finally {
       setSavingCorrection(false);
     }
@@ -265,10 +269,10 @@ export default function MappingReview() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
-            Проверка маппинга
+            {t("mappingReviewTitle")}
           </h1>
           <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 mt-1">
-            Перепроверка замапленных товаров. Источник: bq-results (уже в базе).
+            {t("mappingReviewSubtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -282,7 +286,7 @@ export default function MappingReview() {
             ) : (
               <Cloud className="w-4 h-4" />
             )}
-            Обновить список
+            {t("refreshList")}
           </button>
         </div>
       </div>
@@ -293,12 +297,12 @@ export default function MappingReview() {
         <div className="mb-6 pb-6 border-b border-gray-200 dark:border-slate-700">
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
             <Cloud className="w-4 h-4" />
-            Mapped-файлы из API
+            {t("mappedFilesFromApi")}
           </h3>
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
             <div className="lg:col-span-2">
               <label className="block text-xs font-semibold text-gray-500 mb-2">
-                Выбери mapped-файл
+                {t("selectMappedFile")}
               </label>
               <div className="relative">
                 <select
@@ -306,7 +310,7 @@ export default function MappingReview() {
                   onChange={(e) => setSelectedApiFile(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 text-sm appearance-none cursor-pointer"
                 >
-                  <option value="">-- Выбери файл --</option>
+                  <option value="">{t("selectFilePlaceholder")}</option>
                   {apiFiles.map((file) => (
                     <option key={file.id} value={file.id}>
                       {file.list_name || file.filename || file.id}
@@ -318,7 +322,7 @@ export default function MappingReview() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-2">
-                Лимит записей
+                {t("limitRecords")}
               </label>
               <input
                 type="number"
@@ -339,7 +343,7 @@ export default function MappingReview() {
                 ) : (
                   <CheckCircle2 className="w-4 h-4" />
                 )}
-                Проверить из API
+                {t("verifyFromApi")}
               </button>
             </div>
           </div>
@@ -347,7 +351,7 @@ export default function MappingReview() {
 
         {/* Source info */}
         <div className="text-xs text-gray-500">
-          Источник: bq-results-20260120-103930-1768905602731.csv (уже в базе)
+          {t("sourceLabel")}: bq-results-20260120-103930-1768905602731.csv ({t("alreadyInDatabase")})
         </div>
       </div>
 
@@ -355,37 +359,37 @@ export default function MappingReview() {
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
           <SummaryCard
-            label="Проверено"
+            label={t("verified")}
             value={summary.processed || summary.total}
             className="bg-white"
           />
           <SummaryCard
-            label="Корректно"
+            label={t("correctVerdict")}
             value={summary.correct}
             className="bg-emerald-50 border-emerald-100"
           />
           <SummaryCard
-            label="Исправлено"
+            label={t("correctedVerdict")}
             value={summary.corrected || 0}
             className="bg-blue-50 border-blue-100"
           />
           <SummaryCard
-            label="Проверить"
+            label={t("needsReviewVerdict")}
             value={summary.needs_review}
             className="bg-amber-50 border-amber-100"
           />
           <SummaryCard
-            label="Ошибка"
+            label={t("errorVerdict")}
             value={summary.likely_wrong}
             className="bg-rose-50 border-rose-100"
           />
           <SummaryCard
-            label="Удалено"
+            label={t("deletedVerdict")}
             value={summary.deleted || 0}
             className="bg-red-200 border-red-300"
           />
           <SummaryCard
-            label="Всего исправлений"
+            label={t("totalCorrections")}
             value={summary.total_corrections || 0}
             className="bg-indigo-50 border-indigo-100"
           />
@@ -401,7 +405,7 @@ export default function MappingReview() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Поиск по названию или причине..."
+              placeholder={t("searchPlaceholderMapping")}
               className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm"
             />
           </div>
@@ -410,12 +414,12 @@ export default function MappingReview() {
             onChange={(e) => setFilterVerdict(e.target.value)}
             className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm"
           >
-            <option value="all">Все статусы</option>
-            <option value="correct">Корректно</option>
-            <option value="needs_review">Проверить</option>
-            <option value="likely_wrong">Ошибка</option>
-            <option value="corrected">Исправлено</option>
-            <option value="deleted">Удалено</option>
+            <option value="all">{t("allStatuses")}</option>
+            <option value="correct">{t("correctVerdict")}</option>
+            <option value="needs_review">{t("needsReviewVerdict")}</option>
+            <option value="likely_wrong">{t("errorVerdict")}</option>
+            <option value="corrected">{t("correctedVerdict")}</option>
+            <option value="deleted">{t("deletedVerdict")}</option>
           </select>
         </div>
       )}
@@ -428,19 +432,19 @@ export default function MappingReview() {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                    Вердикт
+                    {t("verdict")}
                   </th>
                   <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                    Источник (Рядом)
+                    {t("sourceRyadom")}
                   </th>
                   <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                    Матч
+                    {t("match")}
                   </th>
                   <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                    Причина
+                    {t("reason")}
                   </th>
                   <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
-                    Действия
+                    {t("actions")}
                   </th>
                 </tr>
               </thead>
@@ -450,7 +454,7 @@ export default function MappingReview() {
                     verdictStyles[row.verdict] || verdictStyles.needs_review;
                   const Icon = style.icon;
                   const canEdit = ['likely_wrong', 'needs_review', 'correct'].includes(row.verdict);
-                  
+
                   return (
                     <tr key={idx} className="hover:bg-gray-50">
                       <td className="py-3 px-4">
@@ -490,7 +494,7 @@ export default function MappingReview() {
                                 setSearchResults([]);
                               }}
                               className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Изменить матч"
+                              title={t("editMatch")}
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
@@ -500,17 +504,17 @@ export default function MappingReview() {
                                 setTimeout(() => deleteMapping(), 100);
                               }}
                               className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Удалить матч"
+                              title={t("deleteMatch")}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         )}
                         {row.verdict === 'corrected' && (
-                          <span className="text-xs text-blue-600">✓ Исправлено</span>
+                          <span className="text-xs text-blue-600">✓ {t("correctedVerdict")}</span>
                         )}
                         {row.verdict === 'deleted' && (
-                          <span className="text-xs text-gray-500">✗ Удалено</span>
+                          <span className="text-xs text-gray-500">✗ {t("deletedVerdict")}</span>
                         )}
                       </td>
                     </tr>
@@ -522,7 +526,7 @@ export default function MappingReview() {
         </div>
       ) : (
         <div className="text-center py-12 text-gray-400">
-          Нет результатов для отображения
+          {t("noDataToDisplay")}
         </div>
       )}
 
@@ -546,7 +550,7 @@ export default function MappingReview() {
               {/* Header */}
               <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-gray-900">Изменить матч</h3>
+                  <h3 className="font-bold text-gray-900">{t("editMatch")}</h3>
                   <p className="text-sm text-gray-500 mt-1">
                     {editModal.item.source?.title}
                   </p>
@@ -567,7 +571,7 @@ export default function MappingReview() {
                     type="text"
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
-                    placeholder="Поиск товара из Рядом..."
+                    placeholder={t("searchRyadomProducts")}
                     className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm"
                     autoFocus
                   />
@@ -602,11 +606,11 @@ export default function MappingReview() {
                   </div>
                 ) : productSearch.length >= 2 && !searchLoading ? (
                   <div className="p-8 text-center text-gray-400">
-                    Товары не найдены
+                    {t("noProductsFound")}
                   </div>
                 ) : (
                   <div className="p-8 text-center text-gray-400">
-                    Введите минимум 2 символа для поиска
+                    {t("minSearchChars")}
                   </div>
                 )}
               </div>
@@ -619,13 +623,13 @@ export default function MappingReview() {
                   className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl text-sm font-semibold"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Удалить матч
+                  {t("deleteMatch")}
                 </button>
                 <button
                   onClick={() => setEditModal(null)}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl text-sm font-semibold"
                 >
-                  Отмена
+                  {t("cancel")}
                 </button>
               </div>
             </motion.div>

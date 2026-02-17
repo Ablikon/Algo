@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronDown, Folder, FolderOpen, Check, Layers, Search, X } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 function collectDescendantIds(children = []) {
   const ids = [];
@@ -130,6 +131,7 @@ export default function CategoryTree({
   onChange,
   showSelectAll = true,
 }) {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
 
   const filterCategories = (cats, term) => {
@@ -196,7 +198,7 @@ export default function CategoryTree({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Поиск категорий..."
+            placeholder={t("searchCategories")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-8 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all dark:text-white"
@@ -223,7 +225,7 @@ export default function CategoryTree({
               {selectedCategories.length > 0 && <Check className="w-3.5 h-3.5 text-white" />}
             </div>
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-              {selectedCategories.length === 0 ? 'Выбрать все' : 'Снять выделение'}
+              {selectedCategories.length === 0 ? t("selectAll") : t("deselectAll")}
             </span>
           </div>
         )}
@@ -246,7 +248,7 @@ export default function CategoryTree({
             <div className="bg-gray-50 dark:bg-slate-900 p-4 rounded-full mb-3">
               <Search className="w-8 h-8 opacity-20" />
             </div>
-            <span className="text-sm font-medium">Ничего не найдено</span>
+            <span className="text-sm font-medium">{t("nothingFound")}</span>
           </div>
         )}
       </div>

@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { importAPI } from "../services/api";
+import { useLanguage } from "../contexts/LanguageContext";
 
 const ExternalImportProgressBar = () => {
+  const { t } = useLanguage();
   const [status, setStatus] = useState(null);
   const [visible, setVisible] = useState(false);
 
@@ -61,17 +63,17 @@ const ExternalImportProgressBar = () => {
       <div className="flex justify-between items-center mb-2">
         <div>
           <h3 className="text-sm font-semibold text-gray-700">
-            {status.is_running ? "Импорт данных из API..." : "Импорт завершён"}
+            {status.is_running ? t("importInProgress") : t("importCompleted")}
           </h3>
           <p className="text-xs text-gray-500">
-            {status.current_file || "Подготовка..."}
+            {status.current_file || t("preparing")}
             {status.current_item ? ` • ${status.current_item}` : ""}
           </p>
         </div>
         <div className="text-right">
           <span className="text-2xl font-bold text-gray-800">{percentage}%</span>
           <p className="text-xs text-gray-500">
-            {processed} / {total} items
+            {processed} / {total} {t("items")}
           </p>
         </div>
       </div>
@@ -85,9 +87,9 @@ const ExternalImportProgressBar = () => {
 
       <div className="flex justify-between mt-2 text-xs text-gray-400">
         <span>
-          Files: {status.processed_files} / {status.total_files}
+          {t("files")}: {status.processed_files} / {status.total_files}
         </span>
-        <span>Errors: {status.errors}</span>
+        <span>{t("errors")}: {status.errors}</span>
       </div>
     </div>
   );

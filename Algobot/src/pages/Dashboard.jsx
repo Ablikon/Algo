@@ -148,38 +148,38 @@ export default function Dashboard() {
         const displayTotal = ourTotal + competitorsTotal;
 
         const marketLeader = stats?.market_leader || 'N/A';
-        
+
         return (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
             <StatsCard
-              title="Минимальная цена"
+              title={t("minPrice")}
               value={stats?.products_at_top || 0}
-              unit="товаров"
-              subtitle={`Лидер: ${marketLeader}`}
+              unit={t("productsCount")}
+              subtitle={`${t("leader")}: ${marketLeader}`}
               icon={Trophy}
               color="emerald"
             />
             <StatsCard
-              title="Дороже лидера"
+              title={t("higherThanLeader")}
               value={stats?.products_need_action || 0}
-              unit="товаров"
-              subtitle={`Дороже чем ${marketLeader}`}
+              unit={t("productsCount")}
+              subtitle={`${t("moreExpensiveThan")} ${marketLeader}`}
               icon={AlertTriangle}
               color="amber"
             />
             <StatsCard
-              title="Только у конкурентов"
+              title={t("competitorsOnly")}
               value={competitorsTotal}
-              unit="товаров"
-              subtitle="Общий ассортимент"
+              unit={t("productsCount")}
+              subtitle={t("totalAssortment")}
               icon={Snail}
               color="rose"
             />
             <StatsCard
-              title="Всего товаров"
+              title={t("totalProducts")}
               value={displayTotal}
-              unit="товаров"
-              subtitle="В выборке магазина"
+              unit={t("productsCount")}
+              subtitle={t("inShopSample")}
               icon={Package}
               color="blue"
             />
@@ -192,7 +192,7 @@ export default function Dashboard() {
         {/* Market Positioning Pie Chart - Forced Ordered Legend */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 dark:border-slate-700">
           <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white mb-4 md:mb-6">
-            Позиционирование на рынке
+            {t("marketPositioning")}
           </h3>
           <div className="h-64 flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
@@ -200,14 +200,14 @@ export default function Dashboard() {
                 <Pie
                   data={[
                     {
-                      name: "ТОП-1 (Лидер)",
+                      name: t("top1Leader"),
                       value: stats?.products_at_top || 0,
                     },
                     {
-                      name: "Выше рынка",
+                      name: t("aboveMarket"),
                       value: stats?.products_need_action || 0,
                     },
-                    { name: "Упущено", value: stats?.missing_products || 0 },
+                    { name: t("missed"), value: stats?.missing_products || 0 },
                   ].filter((d) => d.value >= 0)} // Keep zeros to maintain legend order
                   cx="50%"
                   cy="50%"
@@ -235,9 +235,9 @@ export default function Dashboard() {
                   layout="vertical"
                   content={({ payload }) => {
                     const orderMap = {
-                      "ТОП-1 (Лидер)": 1,
-                      "Выше рынка": 2,
-                      Упущено: 3,
+                      [t("top1Leader")]: 1,
+                      [t("aboveMarket")]: 2,
+                      [t("missed")]: 3,
                     };
                     const sortedPayload = [...payload].sort(
                       (a, b) =>
@@ -272,7 +272,7 @@ export default function Dashboard() {
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100 dark:border-slate-700 h-full">
           <div className="flex items-center justify-between mb-4 md:mb-6">
             <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
-              Активные источники
+              {t("activeSources")}
             </h3>
             <div className="flex items-center gap-2">
               <span className="relative flex h-2.5 w-2.5">
@@ -287,7 +287,7 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-4">
             {[
-              "Рядом",
+              t("ryadom"),
               "Magnum",
               "Wolt",
               "Airba Fresh",
@@ -297,11 +297,12 @@ export default function Dashboard() {
               const normalizedName = name
                 .toLowerCase()
                 .replace(".kz", "")
-                .replace("рядом", "ryadom");
+                .replace(t("ryadom").toLowerCase(), "ryadom");
 
-              const aggStats =
-                stats?.aggregator_stats?.[name] ||
-                stats?.aggregator_stats?.[name.replace(".kz", "")];
+              const isRyadom = name === t("ryadom");
+              const aggStats = isRyadom
+                ? Object.values(stats?.aggregator_stats || {}).find(s => s.is_our_company) || stats?.aggregator_stats?.[name]
+                : stats?.aggregator_stats?.[name] || stats?.aggregator_stats?.[name.replace(".kz", "")];
               const isOnline = !!aggStats && aggStats.count > 0;
 
               // Real count from aggregator stats
@@ -312,10 +313,9 @@ export default function Dashboard() {
                   key={name}
                   className={`
                     flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-200
-                    ${
-                      isOnline
-                        ? "bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-900 dark:text-white"
-                        : "bg-transparent opacity-40 grayscale"
+                    ${isOnline
+                      ? "bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-900 dark:text-white"
+                      : "bg-transparent opacity-40 grayscale"
                     }
                   `}
                 >
@@ -355,10 +355,10 @@ export default function Dashboard() {
                   {/* Product Count */}
                   {isOnline ? (
                     <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                      {count.toLocaleString()} товаров
+                      {count.toLocaleString()} {t("productsCount")}
                     </span>
                   ) : (
-                    <span className="text-xs text-gray-400">Нет данных</span>
+                    <span className="text-xs text-gray-400">{t("noData")}</span>
                   )}
                 </div>
               );

@@ -2,8 +2,10 @@ import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, Check, X, AlertCircle, Loader2, Database, FileJson } from 'lucide-react';
 import { importAPI } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function BulkImport({ onImportComplete }) {
+  const { t } = useLanguage();
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState(null);
   const [dragActive, setDragActive] = useState(false);
@@ -88,23 +90,22 @@ export default function BulkImport({ onImportComplete }) {
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Импорт данных</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{t("importDataTitle")}</h3>
       </div>
 
       {/* Description */}
       <p className="text-sm text-gray-500 mb-4">
-        Импорт товаров из JSON файлов
+        {t("importJsonDesc")}
       </p>
 
       {/* Drop Zone */}
       <div
-        className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-          dragActive
-            ? 'border-emerald-500 bg-emerald-50'
-            : jsonFile
-              ? 'border-emerald-300 bg-emerald-50'
-              : 'border-gray-200 hover:border-gray-300'
-        }`}
+        className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-colors ${dragActive
+          ? 'border-emerald-500 bg-emerald-50'
+          : jsonFile
+            ? 'border-emerald-300 bg-emerald-50'
+            : 'border-gray-200 hover:border-gray-300'
+          }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
@@ -142,9 +143,9 @@ export default function BulkImport({ onImportComplete }) {
           <>
             <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
             <p className="text-gray-600 mb-1">
-              Перетащите файл сюда или нажмите для выбора
+              {t("dragDropFile")}
             </p>
-            <p className="text-sm text-gray-400">JSON файл</p>
+            <p className="text-sm text-gray-400">{t("jsonFileLabel")}</p>
           </>
         )}
       </div>
@@ -159,7 +160,7 @@ export default function BulkImport({ onImportComplete }) {
               onChange={(e) => setDryRun(e.target.checked)}
               className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
             />
-            <span className="text-sm text-gray-600">Тестовый запуск (без сохранения)</span>
+            <span className="text-sm text-gray-600">{t("testRun")}</span>
           </label>
         </div>
       )}
@@ -176,12 +177,12 @@ export default function BulkImport({ onImportComplete }) {
           {uploading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              {dryRun ? 'Анализ...' : 'Импорт...'}
+              {dryRun ? t("analyzing") : t("importing")}
             </>
           ) : (
             <>
               <Database className="w-5 h-5" />
-              {dryRun ? 'Проверить' : 'Импортировать'}
+              {dryRun ? t("verify") : t("importAction")}
             </>
           )}
         </motion.button>
@@ -194,37 +195,36 @@ export default function BulkImport({ onImportComplete }) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className={`mt-4 p-4 rounded-xl ${
-              result.status === 'completed' || result.status === 'completed_with_errors'
-                ? 'bg-emerald-50 border border-emerald-200'
-                : 'bg-rose-50 border border-rose-200'
-            }`}
+            className={`mt-4 p-4 rounded-xl ${result.status === 'completed' || result.status === 'completed_with_errors'
+              ? 'bg-emerald-50 border border-emerald-200'
+              : 'bg-rose-50 border border-rose-200'
+              }`}
           >
             {result.status === 'completed' || result.status === 'completed_with_errors' ? (
               <>
                 <div className="flex items-center gap-2 text-emerald-700 font-medium mb-2">
                   <Check className="w-5 h-5" />
-                  {dryRun ? 'Анализ завершен' : 'Импорт завершен'}
+                  {dryRun ? t("analysisCompleted") : t("importCompleted")}
                 </div>
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
-                    <p className="text-gray-500">Всего найдено</p>
+                    <p className="text-gray-500">{t("totalFound")}</p>
                     <p className="font-semibold text-gray-900">{result.total}</p>
                   </div>
                   <div>
-                    <p className="text-gray-500">{dryRun ? 'Будет импортировано' : 'Успешно'}</p>
+                    <p className="text-gray-500">{dryRun ? t("willBeImported") : t("successfully")}</p>
                     <p className="font-semibold text-emerald-600">{result.success}</p>
                   </div>
                   <div>
                     <p className="text-gray-500">Ошибок</p>
-                    <p className="font-semibold text-rose-600">{result.errors}</p>
+                    <p className="font-semibold text-rose-600">{result.errors} {t("errorsCount")}</p>
                   </div>
                 </div>
 
                 {/* Show aggregator breakdown */}
                 {result.by_aggregator && Object.keys(result.by_aggregator).length > 0 && (
                   <div className="mt-3 pt-3 border-t border-emerald-200">
-                    <p className="text-sm text-gray-600 mb-2">По агрегаторам:</p>
+                    <p className="text-sm text-gray-600 mb-2">{t("byAggregators")}</p>
                     <div className="flex flex-wrap gap-2">
                       {Object.entries(result.by_aggregator).map(([name, count]) => (
                         <span key={name} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
@@ -238,7 +238,7 @@ export default function BulkImport({ onImportComplete }) {
                 {/* Show categories breakdown */}
                 {result.by_category && Object.keys(result.by_category).length > 0 && (
                   <div className="mt-3 pt-3 border-t border-emerald-200">
-                    <p className="text-sm text-gray-600 mb-2">По категориям:</p>
+                    <p className="text-sm text-gray-600 mb-2">{t("byCategories")}</p>
                     <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
                       {Object.entries(result.by_category).slice(0, 10).map(([name, count]) => (
                         <span key={name} className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
@@ -247,7 +247,7 @@ export default function BulkImport({ onImportComplete }) {
                       ))}
                       {Object.keys(result.by_category).length > 10 && (
                         <span className="text-xs text-gray-500">
-                          +{Object.keys(result.by_category).length - 10} еще
+                          +{Object.keys(result.by_category).length - 10} {t("more")}
                         </span>
                       )}
                     </div>
@@ -256,7 +256,7 @@ export default function BulkImport({ onImportComplete }) {
 
                 {result.error_details && result.error_details.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-emerald-200">
-                    <p className="text-sm text-gray-600 mb-2">Ошибки:</p>
+                    <p className="text-sm text-gray-600 mb-2">{t("errorsLabel")}</p>
                     <div className="space-y-1 max-h-32 overflow-y-auto">
                       {result.error_details.slice(0, 5).map((err, i) => (
                         <p key={i} className="text-xs text-rose-600">
@@ -278,7 +278,7 @@ export default function BulkImport({ onImportComplete }) {
               onClick={resetUpload}
               className="mt-4 w-full py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
             >
-              Загрузить другой файл
+              {t("uploadAnotherFile")}
             </button>
           </motion.div>
         )}

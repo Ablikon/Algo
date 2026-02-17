@@ -21,6 +21,7 @@ import MatchingProgressBar from "../components/MatchingProgressBar";
 import ExternalImportProgressBar from "../components/ExternalImportProgressBar";
 import { analyticsAPI, productsAPI } from "../services/api";
 import { useCity } from "../contexts/CityContext";
+import { useLanguage } from "../contexts/LanguageContext";
 
 import glovoLogo from "../assets/glovo.jpeg";
 import magnumLogo from "../assets/Magnum_Cash_&_Carry.png";
@@ -56,6 +57,7 @@ const TOP_GAPS = 5;
 const EXPANDED_PAGE_SIZE = 20;
 
 export default function Analytics() {
+  const { t } = useLanguage();
   const [stats, setStats] = useState(null);
   const [gaps, setGaps] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -118,24 +120,24 @@ export default function Analytics() {
   };
 
   // Our products count (Рядом)
-  const ryadomStats = stats?.aggregator_stats?.['Рядом'];
+  const ryadomStats = Object.values(stats?.aggregator_stats || {}).find(s => s.is_our_company) || stats?.aggregator_stats?.[t("ryadom")];
   const totalOurProducts = ryadomStats?.count || 0;
-  
+
   // Competitor data - show actual product counts per aggregator (including Рядом)
   const overlapData = stats?.aggregator_stats
     ? Object.entries(stats.aggregator_stats)
-        .map(([name, data]) => {
-          const normalizedKey = name.toLowerCase().replace(".kz", "").replace("рядом", "ryadom").trim();
-          return {
-            name,
-            normalizedKey,
-            value: data.count || 0, // Actual product count
-            overlap: data.overlap_count || 0,
-            color: aggregatorColors[normalizedKey] || "#cbd5e1",
-          };
-        })
-        .filter(item => item.value > 0) // Only show aggregators with products
-        .sort((a, b) => b.value - a.value)
+      .map(([name, data]) => {
+        const normalizedKey = name.toLowerCase().replace(".kz", "").replace(t("ryadom").toLowerCase(), "ryadom").trim();
+        return {
+          name,
+          normalizedKey,
+          value: data.count || 0, // Actual product count
+          overlap: data.overlap_count || 0,
+          color: aggregatorColors[normalizedKey] || "#cbd5e1",
+        };
+      })
+      .filter(item => item.value > 0) // Only show aggregators with products
+      .sort((a, b) => b.value - a.value)
     : [];
 
   const gridColor = "#f1f5f9";
@@ -149,7 +151,7 @@ export default function Analytics() {
         <div className="flex flex-col items-center gap-4">
           <RefreshCw className="w-10 h-10 text-emerald-500 animate-spin" />
           <p className="text-gray-500 font-medium italic">
-            Загрузка аналитики...
+            {t("loadingAnalytics")}
           </p>
         </div>
       </div>
@@ -162,10 +164,10 @@ export default function Analytics() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <div>
           <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white">
-            Аналитика рынка
+            {t("analyticsTitle")}
           </h1>
           <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 mt-1">
-            Детальный разбор ценовых позиций
+            {t("analyticsSubtitle")}
           </p>
         </div>
         <button
@@ -173,7 +175,7 @@ export default function Analytics() {
           className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200 px-3 md:px-4 py-2 rounded-xl text-sm md:text-base font-medium transition-all shadow-sm self-start sm:self-auto"
         >
           <RefreshCw className="w-4 h-4" />
-          <span className="hidden sm:inline">Обновить</span>
+          <span className="hidden sm:inline">{t("refresh")}</span>
         </button>
       </div>
 
@@ -195,10 +197,10 @@ export default function Analytics() {
               </div>
               <div>
                 <h3 className="text-base md:text-xl font-bold text-gray-900 dark:text-white">
-                  {showAllGaps ? 'Упущенные возможности' : 'Топ 5 упущенных возможностей'}
+                  {showAllGaps ? t("missedOpportunities") : t("top5Gaps")}
                 </h3>
                 <p className="text-xs md:text-sm text-gray-500 hidden sm:block">
-                  Товары, которые есть у конкурентов {totalGaps > 0 && `(${totalGaps})`}
+                  {t("competitorsProducts")} {totalGaps > 0 && `(${totalGaps})`}
                 </p>
               </div>
             </div>
@@ -208,7 +210,7 @@ export default function Analytics() {
                 disabled={gapsLoading}
                 className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors disabled:opacity-50"
               >
-                {gapsLoading ? 'Загрузка...' : showAllGaps ? 'Свернуть' : `Смотреть все`}
+                {gapsLoading ? t("loading") : showAllGaps ? t("collapse") : t("viewAll")}
               </button>
             )}
           </div>
@@ -217,10 +219,7 @@ export default function Analytics() {
             <div className="flex items-start gap-3">
               <AlertCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed">
-                <span className="font-bold">Анализ пробелов:</span> Здесь
-                собраны товары, которые представлены у большинства ваших
-                конкурентов. Добавление этих позиций поможет увеличить ваш охват
-                и привлечь новых покупателей.
+                <span className="font-bold">{t("gapAnalysis")}:</span> {t("gapAnalysisDesc")}
               </p>
             </div>
           </div>
@@ -230,16 +229,16 @@ export default function Analytics() {
               <thead>
                 <tr className="border-b-2 border-gray-200 dark:border-slate-700">
                   <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 dark:text-gray-300">
-                    Товар
+                    {t("product")}
                   </th>
                   <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 dark:text-gray-300">
-                    Категория
+                    {t("category")}
                   </th>
                   <th className="text-center py-3 px-4 text-sm font-bold text-gray-700 dark:text-gray-300">
-                    Популярность
+                    {t("popularity")}
                   </th>
                   <th className="text-right py-3 px-4 text-sm font-bold text-gray-700 dark:text-gray-300">
-                    Мин. цена
+                    {t("minPriceShort")}
                   </th>
                 </tr>
               </thead>
@@ -270,7 +269,7 @@ export default function Analytics() {
                     </td>
                     <td className="py-4 px-4 text-center">
                       <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-400 font-bold text-xs">
-                        {item.aggregator_count || item.competitor_count || 2} агрегаторов
+                        {item.aggregator_count || item.competitor_count || 2} {t("aggregatorsCount")}
                       </div>
                     </td>
                     <td className="py-4 px-4 text-right">
@@ -287,7 +286,7 @@ export default function Analytics() {
           {gaps.length === 0 && !gapsLoading && (
             <div className="text-center py-12 text-gray-400 flex flex-col items-center gap-3">
               <ShoppingBag className="w-8 h-8 opacity-20" />
-              <p>Нет пропущенных товаров для отображения</p>
+              <p>{t("noGapsToDisplay")}</p>
             </div>
           )}
 
@@ -301,7 +300,7 @@ export default function Analytics() {
           {showAllGaps && totalGapsPages > 1 && (
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between">
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                Страница {gapsPage} из {totalGapsPages}
+                {t("page")} {gapsPage} {t("of")} {totalGapsPages}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -309,14 +308,14 @@ export default function Analytics() {
                   disabled={gapsPage <= 1 || gapsLoading}
                   className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  ← Назад
+                  ← {t("back")}
                 </button>
                 <button
                   onClick={() => fetchGapsPage(gapsPage + 1)}
                   disabled={gapsPage >= totalGapsPages || gapsLoading}
                   className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  Вперёд →
+                  {t("next")} →
                 </button>
               </div>
             </div>
@@ -338,10 +337,10 @@ export default function Analytics() {
               </div>
               <div>
                 <h3 className="text-base md:text-xl font-bold text-gray-900 dark:text-white">
-                  Ассортимент конкурентов
+                  {t("competitorsAssortment")}
                 </h3>
                 <p className="text-xs md:text-sm text-gray-500 hidden sm:block">
-                  Количество товаров у каждого агрегатора
+                  {t("productsPerAggregator")}
                 </p>
               </div>
             </div>
@@ -351,9 +350,8 @@ export default function Analytics() {
             <div className="flex items-start gap-3">
               <AlertCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed">
-                <span className="font-bold">Что означает график:</span>{" "}
-                показывает количество товаров у каждого конкурента. Чем больше ассортимент — 
-                тем сильнее конкурент на рынке.
+                <span className="font-bold">{t("whatChartMeans")}:</span>{" "}
+                {t("chartExplanation")}
               </p>
             </div>
           </div>
@@ -394,7 +392,7 @@ export default function Analytics() {
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-black text-gray-900 dark:text-white">
-                          {item.value.toLocaleString('ru-RU')} ТОВАРОВ
+                          {item.value.toLocaleString('ru-RU')} {t("productsUpper")}
                         </span>
                       </div>
                     </div>
@@ -421,7 +419,7 @@ export default function Analytics() {
             {overlapData.length === 0 && (
               <div className="text-center py-12 text-gray-400">
                 <ShoppingBag className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                <p>Нет данных о пересечении ассортимента</p>
+                <p>{t("noOverlapData")}</p>
               </div>
             )}
           </div>

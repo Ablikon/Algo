@@ -6,8 +6,10 @@ import AlgorithmVisualizer from '../components/AlgorithmVisualizer';
 import { NoRecommendations } from '../components/EmptyState';
 import { recommendationsAPI, algorithmAPI } from '../services/api';
 import { useCity } from '../contexts/CityContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Recommendations() {
+  const { t } = useLanguage();
   const { refreshKey } = useCity();
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -97,8 +99,8 @@ export default function Recommendations() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Рекомендации</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">AI-рекомендации по ценообразованию для достижения ТОП-1</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("recommendationsTitle")}</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">{t("pricingRecommendations")}</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -106,7 +108,7 @@ export default function Recommendations() {
             className="flex items-center gap-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-xl font-medium transition-colors"
           >
             <Play className="w-4 h-4" />
-            {showVisualizer ? 'Скрыть визуализацию' : 'Показать визуализацию'}
+            {showVisualizer ? t("hideVisualization") : t("showVisualization")}
           </button>
           <button
             onClick={handleRunAlgorithm}
@@ -114,7 +116,7 @@ export default function Recommendations() {
             className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${runningAlgorithm ? 'animate-spin' : ''}`} />
-            {runningAlgorithm ? 'Выполняется...' : 'Запустить алгоритм'}
+            {runningAlgorithm ? t("running") : t("runAlgorithm")}
           </button>
         </div>
       </div>
@@ -135,28 +137,28 @@ export default function Recommendations() {
       <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-slate-700 text-center">
           <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Всего</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">{t("total")}</p>
         </div>
         <div className="bg-amber-50 dark:bg-amber-900/30 rounded-xl p-4 border border-amber-100 dark:border-amber-800 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
             <Clock className="w-5 h-5 text-amber-500 dark:text-amber-400" />
             <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.pending}</p>
           </div>
-          <p className="text-sm text-amber-600 dark:text-amber-400">В ожидании</p>
+          <p className="text-sm text-amber-600 dark:text-amber-400">{t("waiting")}</p>
         </div>
         <div className="bg-emerald-50 dark:bg-emerald-900/30 rounded-xl p-4 border border-emerald-100 dark:border-emerald-800 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
             <CheckCircle className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
             <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.applied}</p>
           </div>
-          <p className="text-sm text-emerald-600 dark:text-emerald-400">Применено</p>
+          <p className="text-sm text-emerald-600 dark:text-emerald-400">{t("applied")}</p>
         </div>
         <div className="bg-gray-50 dark:bg-slate-700 rounded-xl p-4 border border-gray-200 dark:border-slate-600 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
             <XCircle className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             <p className="text-2xl font-bold text-gray-600 dark:text-gray-300">{stats.rejected}</p>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Отклонено</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t("rejected")}</p>
         </div>
       </div>
 
@@ -164,12 +166,12 @@ export default function Recommendations() {
       <div className="flex items-center gap-2 mb-6">
         <Filter className="w-5 h-5 text-gray-400" />
         {[
-          { value: 'all', label: 'Все' },
-          { value: 'pending', label: 'В ожидании' },
-          { value: 'applied', label: 'Применено' },
-          { value: 'rejected', label: 'Отклонено' },
-          { value: 'lower', label: 'Сниженная цена' },
-          { value: 'add', label: 'Добавить продукт' },
+          { value: 'all', label: t("all") },
+          { value: 'pending', label: t("waiting") },
+          { value: 'applied', label: t("applied") },
+          { value: 'rejected', label: t("rejected") },
+          { value: 'lower', label: t("lowerPrice") },
+          { value: 'add', label: t("addProduct") },
         ].map((f) => (
           <button
             key={f.value}

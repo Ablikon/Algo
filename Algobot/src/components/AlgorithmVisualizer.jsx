@@ -1,14 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, RotateCcw, CheckCircle, AlertTriangle, Plus, ArrowRight } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
-const STEPS = [
-  { id: 1, name: 'Загрузка', description: 'Загрузка товаров и цен со всех агрегаторов' },
-  { id: 2, name: 'Анализ', description: 'Сравнение цен конкурентов' },
-  { id: 3, name: 'Поиск дефицита', description: 'Поиск отсутствующих товаров в нашем каталоге' },
-  { id: 4, name: 'Расчёт', description: 'Вычисление оптимальных цен для ТОП-1' },
-  { id: 5, name: 'Генерация', description: 'Создание рекомендаций к действию' },
-];
+
 
 const sampleProducts = [
   { name: 'Картошка', glovo: 200, yandex: 150, wolt: 300, action: 'lower', recommended: 149 },
@@ -18,10 +13,19 @@ const sampleProducts = [
 ];
 
 export default function AlgorithmVisualizer() {
+  const { t } = useLanguage();
   const [isRunning, setIsRunning] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [analyzedProducts, setAnalyzedProducts] = useState([]);
   const [currentProductIndex, setCurrentProductIndex] = useState(-1);
+
+  const STEPS = [
+    { id: 1, name: t("loading"), description: t("loadingDesc") },
+    { id: 2, name: t("analysis"), description: t("analysisDesc") },
+    { id: 3, name: t("scarcitySearch"), description: t("scarcitySearchDesc") },
+    { id: 4, name: t("calculation"), description: t("calculationDesc") },
+    { id: 5, name: t("generation"), description: t("generationDesc") },
+  ];
 
   useEffect(() => {
     if (!isRunning) return;
@@ -86,11 +90,11 @@ export default function AlgorithmVisualizer() {
   const getActionText = (action) => {
     switch (action) {
       case 'lower':
-        return 'Снизить цену';
+        return t("lowerPrice");
       case 'add':
-        return 'Добавить товар';
+        return t("addProduct");
       case 'top':
-        return 'ТОП 1';
+        return t("top1");
       default:
         return '';
     }
@@ -100,8 +104,8 @@ export default function AlgorithmVisualizer() {
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Визуализация алгоритма</h3>
-          <p className="text-sm text-gray-500">Посмотрите, как Pricent анализирует цены в реальном времени</p>
+          <h3 className="text-lg font-semibold text-gray-900">{t("visualizationTitle")}</h3>
+          <p className="text-sm text-gray-500">{t("visualizationDesc")}</p>
         </div>
         <div className="flex gap-2">
           {!isRunning && currentStep === 0 && (
@@ -110,7 +114,7 @@ export default function AlgorithmVisualizer() {
               className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
             >
               <Play className="w-4 h-4" />
-              Запустить алгоритм
+              {t("runAlgorithm")}
             </button>
           )}
           {isRunning && (
@@ -119,7 +123,7 @@ export default function AlgorithmVisualizer() {
               className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl font-medium transition-colors"
             >
               <Pause className="w-4 h-4" />
-              Пауза
+              {t("pause")}
             </button>
           )}
           {currentStep > 0 && (
@@ -128,7 +132,7 @@ export default function AlgorithmVisualizer() {
               className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl font-medium transition-colors"
             >
               <RotateCcw className="w-4 h-4" />
-              Сбросить
+              {t("reset")}
             </button>
           )}
         </div>
@@ -146,17 +150,16 @@ export default function AlgorithmVisualizer() {
                     currentStep > index
                       ? '#10b981'
                       : currentStep === index + 1
-                      ? '#f59e0b'
-                      : '#e5e7eb',
+                        ? '#f59e0b'
+                        : '#e5e7eb',
                 }}
                 transition={{ duration: 0.3 }}
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
-                  currentStep > index
-                    ? 'text-white'
-                    : currentStep === index + 1
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${currentStep > index
+                  ? 'text-white'
+                  : currentStep === index + 1
                     ? 'text-white'
                     : 'text-gray-400'
-                }`}
+                  }`}
               >
                 {currentStep > index ? (
                   <CheckCircle className="w-5 h-5" />
@@ -164,9 +167,8 @@ export default function AlgorithmVisualizer() {
                   step.id
                 )}
               </motion.div>
-              <p className={`text-xs mt-2 font-medium ${
-                currentStep >= index + 1 ? 'text-gray-900' : 'text-gray-400'
-              }`}>
+              <p className={`text-xs mt-2 font-medium ${currentStep >= index + 1 ? 'text-gray-900' : 'text-gray-400'
+                }`}>
                 {step.name}
               </p>
             </div>
@@ -210,7 +212,7 @@ export default function AlgorithmVisualizer() {
       {/* Product Analysis Animation */}
       {(currentStep >= 2 || analyzedProducts.length > 0) && (
         <div className="space-y-3">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">Результаты анализа:</h4>
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">{t("analysisResults")}</h4>
           <AnimatePresence>
             {analyzedProducts.map((product, index) => (
               <motion.div
@@ -246,13 +248,12 @@ export default function AlgorithmVisualizer() {
                       <span className="font-bold text-emerald-600">{product.recommended}₸</span>
                     </>
                   )}
-                  <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                    product.action === 'top'
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : product.action === 'add'
+                  <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${product.action === 'top'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : product.action === 'add'
                       ? 'bg-rose-100 text-rose-700'
                       : 'bg-amber-100 text-amber-700'
-                  }`}>
+                    }`}>
                     {getActionIcon(product.action)}
                     {getActionText(product.action)}
                   </span>
@@ -271,9 +272,9 @@ export default function AlgorithmVisualizer() {
           className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 text-center"
         >
           <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-          <h4 className="text-lg font-semibold text-emerald-800 mb-1">Анализ завершён!</h4>
+          <h4 className="text-lg font-semibold text-emerald-800 mb-1">{t("analysisCompletedLong")}</h4>
           <p className="text-emerald-600">
-            Найдено {analyzedProducts.filter(p => p.action !== 'top').length} рекомендаций для достижения ТОП-1
+            {t("recommendationsFound").replace("{count}", analyzedProducts.filter(p => p.action !== 'top').length)}
           </p>
         </motion.div>
       )}

@@ -33,7 +33,7 @@ exports.getDashboardStats = async (req, res) => {
         });
 
         const products = Object.values(productMap);
-        
+
         // Calculate overlaps - products that have prices from multiple aggregators
         const aggregatorOverlaps = {};
 
@@ -44,7 +44,7 @@ exports.getDashboardStats = async (req, res) => {
                     aggregatorWins[p.name] = (aggregatorWins[p.name] || 0) + 1;
                 }
             });
-            
+
             // Count overlaps - for each aggregator, count products where we also have that product
             if (prices.length > 1) {
                 prices.forEach(p => {
@@ -67,23 +67,24 @@ exports.getDashboardStats = async (req, res) => {
 
         const allAggregators = await Aggregator.find().sort('name');
         const aggregatorStats = {};
-        
+
         for (const agg of allAggregators) {
             let count = aggregatorTotals[agg.name] || 0;
-            
+
             // For our company (Рядом), count all products regardless of price
             if (agg.is_our_company) {
                 count = await Price.countDocuments({ aggregator: agg._id });
             }
-            
+
             // overlap_count = products where this aggregator competes with others
             const overlapCount = aggregatorOverlaps[agg.name] || 0;
-            
+
             aggregatorStats[agg.name] = {
                 count,
                 percent: products.length > 0 ? Math.round((count / products.length) * 100) : 0,
                 best_price_count: aggregatorWins[agg.name] || 0,
-                overlap_count: overlapCount
+                overlap_count: overlapCount,
+                is_our_company: agg.is_our_company
             };
         }
 
@@ -106,7 +107,7 @@ exports.getGaps = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const pageSize = parseInt(req.query.page_size) || 50;
         const skip = (page - 1) * pageSize;
-        
+
         // Get products that appear in multiple aggregators (popular products)
         // First, get total count
         const countResult = await Price.aggregate([
@@ -147,7 +148,7 @@ exports.getGaps = async (req, res) => {
 
         // Get product links (URLs) if available
         const ProductLink = require('../models/ProductLink');
-        const productLinks = await ProductLink.find({ 
+        const productLinks = await ProductLink.find({
             product: { $in: productIds },
             url: { $ne: null, $exists: true }
         }).lean();
@@ -193,7 +194,7 @@ exports.getGaps = async (req, res) => {
 exports.getAggregatorOverlap = async (req, res) => {
     try {
         const aggregators = await Aggregator.find().sort('name');
-        
+
         const result = await Promise.all(aggregators.map(async (agg) => {
             const productCount = await Price.distinct('product', { aggregator: agg._id });
             return {
